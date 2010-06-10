@@ -1,0 +1,13 @@
+Classification Server
+A simple HTTP server that provides an interface to a number of classifiers.  Since communication is performed over HTTP, practically every implementation language can take advantage of it.
+
+Initial Focus
+- Binary classifiers
+- Floating point vector data
+- Scalar confidence values
+
+Goals
+1. HTTP interface to a variety of classifiers
+2. Client implementations for common languages (C/C++/Python/Matlab)
+3. Simplify classifier comparison
+4. Provide standard evaluation metrics and visualizations
