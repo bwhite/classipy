@@ -34,9 +34,9 @@ class Test(unittest.TestCase):
         # Test
         c = svm.SVM(options={'t': '0'})
         c.train(train_labels, train_values)
-        self.assertEqual(c.test([0.])[0][1], -1)
-        self.assertEqual(c.test([2.])[0][1], 1)
-        self.assertEqual(c.test([4.])[0][1], 1)
+        self.assertEqual(c.predict([0.])[0][1], -1)
+        self.assertEqual(c.predict([2.])[0][1], 1)
+        self.assertEqual(c.predict([4.])[0][1], 1)
 
 
 

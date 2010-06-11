@@ -1,0 +1,41 @@
+Classifier Interface
+- Implement the necessary interface (duck typed) that extends from BinaryClassifier.
+- Data is specified in "list-like" objects.  This refers to lists, tuples, and numpy arrays.
+- The BinaryClassifier base class supports the necessary type conversions.
+- To specify the desired internal type, set self.to_type to the type you work with internally (i.e., one of list, tuple, or numpy.ndarray)
+- The default value for self.to_type is 'list'.
+- Explicitly specifying self.to_type allows the user to pick that type for efficiency purposes and prevent conversion.
+- The helper functions self._convert_value and self._convert_values produce conversions from valid input to your desired type.
+- It is assumed that for values, all objects are of the same type in the list (e.g., a homogeneous list of list/tuple/numpy).
+- The actual numeric representation is maintained as provided (int to int, float to float, etc.) and numpy wrapped numbers are only produced for the numpy datatype (going from a numpy type to a list will result in a list of native python numbers and not numpy derived numbers).
+
+Binary classifier interface
+
+class MyClassifier(BinaryClassifier):
+    def __init__(self, options=None):
+    	"""Initializes classifier
+
+        Args:
+            options: A dictionary of options specific to the classifier.
+        """
+	super(MyClassifier, self).__init__(options)
+        self.to_type = list #  Either numpy.ndarray, tuple, or list.
+
+   def train(self, labels, values):
+        """Trains a classifier whos model is held internally.
+
+        Args:
+            labels: List of integer labels.
+            values: List of list-like objects, all with the same dimensionality.
+        """
+
+    def predict(self, value):
+        """Evaluates a single value against the training data.
+
+        Args:
+            value: List-like object with same dimensionality used for training.
+
+        Returns:
+            Sorted (descending) list of (confidence, label).
+        """
+

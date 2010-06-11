@@ -22,33 +22,38 @@ __license__ = 'GPL V3'
 
 import numpy as np
 
+from base import BinaryClassifier
 
-class KNN(object):
+class KNN(BinaryClassifier):
     def __init__(self, options=None):
+        super(KNN, self).__init__()
         try:
             self._k = options['k']
         except (KeyError, TypeError):
             self._k = 1
+        self.to_type = np.ndarray
 
     def train(self, labels, values):
         """Stores the training data internally.
 
         Args:
-            labels: List of integer labels
-            values: List of numpy arrays, all with the same dimensionality
+            labels: List of integer labels.
+            values: List of list-like objects, all with the same dimensionality.
         """
+        values = self._convert_values(values)
         self._labels = labels
         self._values = values
 
-    def test(self, value):
+    def predict(self, value):
         """Evaluates a single value against the training data.
 
         Args:
-            value: A numpy array
+            value: List-like object with same dimensionality used for training.
 
         Returns:
-            Sorted (descending) list of (confidence, label)
+            Sorted (descending) list of (confidence, label).
         """
+        value = self._convert_value(value)
         dists = value - self._values
         dists = np.sum(dists * dists, 1)
         dists_labels = zip(dists, self._labels)

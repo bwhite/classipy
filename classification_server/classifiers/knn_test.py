@@ -36,17 +36,17 @@ class Test(unittest.TestCase):
         test_output = [(1, 1)]
         c = knn.KNN()
         c.train(train_labels, train_values)
-        self.assertEqual(c.test(test_value), test_output)
+        self.assertEqual(c.predict(test_value), test_output)
         # Test - K=3
         test_output = [(3, 1)]
         c = knn.KNN(options={'k': 3})
         c.train(train_labels, train_values)
-        self.assertEqual(c.test(test_value), test_output)
+        self.assertEqual(c.predict(test_value), test_output)
         # Test - K=5
         test_output = [(3, 1), (2, 0)]
         c = knn.KNN(options={'k': 5})
         c.train(train_labels, train_values)
-        self.assertEqual(c.test(test_value), test_output)
+        self.assertEqual(c.predict(test_value), test_output)
 
 
 

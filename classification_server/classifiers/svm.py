@@ -25,38 +25,43 @@ import numpy as np
 import libsvm.svm
 import libsvm.svmutil
 
+from base import BinaryClassifier
 
-class SVM(object):
+
+class SVM(BinaryClassifier):
     def __init__(self, options=None):
+        super(SVM, self).__init__()
         try:
             self._param = ' '.join(['-%s %s' % x for x in options.items()])
         except AttributeError:
             self._param = ''
+        self.to_type = list
         
     def train(self, labels, values):
         """Build a model.
 
         Args:
             labels: List of integer labels
-            values: List of numpy arrays, all with the same dimensionality
+            values: List of list-like objects, all with the same dimensionality.
         """
+        values = self._convert_values(values)
         prob  = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
         self._m = libsvm.svmutil.svm_train(prob, param)
 
-    def test(self, value):
+    def predict(self, value):
         """Evaluates a single value against the training data.
 
         NOTE: Confidence is currently set to 0!
 
         Args:
-            value: A numpy array
+            value: List-like object with same dimensionality used for training.
 
         Returns:
             Sorted (descending) list of (confidence, label)
         """
+        value = self._convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
-        print(labels)
         return [(0., labels[0])]
 
 def main():
