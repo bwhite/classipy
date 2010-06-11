@@ -3,17 +3,13 @@
 from ctypes import *
 from ctypes.util import find_library
 import sys
+from . import __path__
 
-# For unix the prefix 'lib' is not considered.
-if find_library('svm'):
-	libsvm = CDLL(find_library('svm'))
-elif find_library('libsvm'):
-	libsvm = CDLL(find_library('libsvm'))
-else  :
-	if sys.platform == 'win32':
-		libsvm = CDLL('./windows/libsvm.dll')
-	else :
-		libsvm = CDLL('./libsvm.so.1')
+# Load library
+try:
+    libsvm = np.ctypeslib.load_library('libsvm', __path__[0])
+except OSError:
+    libsvm = np.ctypeslib.load_library('libsvm', '.')
 
 # Construct constants
 SVM_TYPE = ['C_SVC', 'NU_SVC', 'ONE_CLASS', 'EPSILON_SVR', 'NU_SVR' ]
