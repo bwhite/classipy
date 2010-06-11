@@ -22,7 +22,7 @@ import unittest
 
 import numpy as np
 
-import svm
+from classipy.classifiers import svm
 
 
 class Test(unittest.TestCase):

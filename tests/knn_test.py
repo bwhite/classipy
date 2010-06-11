@@ -22,7 +22,7 @@ import unittest
 
 import numpy as np
 
-import knn
+from classipy.classifiers import knn
 
 
 class Test(unittest.TestCase):

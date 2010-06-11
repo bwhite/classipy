@@ -7,7 +7,18 @@ Initial Focus
 - Scalar confidence values
 
 Goals
-1. HTTP interface to a variety of classifiers
-2. Client implementations for common languages (C/C++/Python/Matlab)
-3. Simplify classifier comparison
-4. Provide standard evaluation metrics and visualizations
+- HTTP interface to a variety of classifiers
+- Client implementations for common languages (C/C++/Python/Matlab)
+- Simplify classifier comparison
+- Provide standard evaluation metrics and visualizations
+- Provide standard operations such as train, test, and cross-validation
+- Stay simple!
+
+Metrics
+- Accuracy
+- Mean Squared Error
+- Squared Correlation Coefficient
+
+Plots
+- PR Curve
+- ROC Curve

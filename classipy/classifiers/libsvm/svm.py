@@ -3,6 +3,8 @@
 from ctypes import *
 from ctypes.util import find_library
 import sys
+import numpy as np
+
 from . import __path__
 
 # Load library
