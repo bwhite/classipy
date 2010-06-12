@@ -20,17 +20,19 @@
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
+import random
+
 import numpy as np
 
 
-def cross_validation(classifier, labels, values, folds=10, options=None):
+def cross_validation(classifier, labels, values, num_folds=10, options=None):
     """Performs cross validation on a BinaryClassifier.
 
     Args:
         classifier: A classifier that conforms to the BinaryClassifier spec.
         labels: List of integer labels.
         values: List of list-like objects, all with the same dimensionality.
-        folds: Number of partitions to split the data into (default 10).
+        num_folds: Number of partitions to split the data into (default 10).
     Returns:
         A dictionary of performance statistics.
     """
@@ -38,17 +40,19 @@ def cross_validation(classifier, labels, values, folds=10, options=None):
     labels_values = zip(labels, values)
     random.shuffle(labels_values)
     # Split up folds
-    fold_size = int(np.ceil(len(labels) / float(folds)))
+    fold_size = int(np.ceil(len(labels) / float(num_folds)))
     folds = [labels_values[x * fold_size:(x + 1) * fold_size]
-             for x in range(folds)]
+             for x in range(num_folds)]
     # Iterate, leaving one fold out for testing each time
     accuracy_sum = 0.
-    for test_num in range(folds):
+    for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
         c = classifier(options=options)
         c.train(*zip(*train_labels_values))
-        test_results = [(label, c.test(value)[0][1])
+        test_results = [(label, c.predict(value)[0][1])
                         for label, value in folds[test_num]]
         accuracy = len([1 for x in test_results if x[0] == x[1]])
         accuracy /= float(len(test_results))
-        print(accuracy)
+        accuracy_sum += accuracy
+        print('Acc[%f] TrainSize[%d] TestSize[%d]' % (accuracy, len(train_labels_values), len(test_results)))
+    return accuracy_sum / num_folds
