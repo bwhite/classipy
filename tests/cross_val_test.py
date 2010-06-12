@@ -23,8 +23,6 @@ import unittest
 import numpy as np
 
 import classipy
-from classipy.classifiers import knn
-
 
 class Test(unittest.TestCase):
     def test_traintest0(self):
@@ -34,7 +32,7 @@ class Test(unittest.TestCase):
         labels = [0] * 100
         labels += [1] * 100
         # Test - K=1
-        print(classipy.cross_validation(knn.KNN, labels, values))
+        print(classipy.cross_validation(classipy.KNN, labels, values))
 
 if __name__ == '__main__':
     unittest.main()

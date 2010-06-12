@@ -35,6 +35,7 @@ class SVM(BinaryClassifier):
             self._param = ' '.join(['-%s %s' % x for x in options.items()])
         except AttributeError:
             self._param = ''
+        self._param += ' -q'  # Makes silent
         self.to_type = list
         
     def train(self, labels, values):

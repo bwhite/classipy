@@ -25,11 +25,11 @@ import random
 import numpy as np
 
 
-def cross_validation(classifier, labels, values, num_folds=10, options=None):
+def cross_validation(classifier_class, labels, values, num_folds=10, options=None):
     """Performs cross validation on a BinaryClassifier.
 
     Args:
-        classifier: A classifier that conforms to the BinaryClassifier spec.
+        classifier_class: A classifier that conforms to the BinaryClassifier spec.
         labels: List of integer labels.
         values: List of list-like objects, all with the same dimensionality.
         num_folds: Number of partitions to split the data into (default 10).
@@ -47,12 +47,24 @@ def cross_validation(classifier, labels, values, num_folds=10, options=None):
     accuracy_sum = 0.
     for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
-        c = classifier(options=options)
-        c.train(*zip(*train_labels_values))
-        test_results = [(label, c.predict(value)[0][1])
-                        for label, value in folds[test_num]]
-        accuracy = len([1 for x in test_results if x[0] == x[1]])
-        accuracy /= float(len(test_results))
-        accuracy_sum += accuracy
-        print('Acc[%f] TrainSize[%d] TestSize[%d]' % (accuracy, len(train_labels_values), len(test_results)))
+        c = classifier_class(options=options)
+        c.train(*zip(*train_labels_values))        
+        accuracy_sum += evaluate(c, *zip(*folds[test_num]))['accuracy']
     return accuracy_sum / num_folds
+
+
+def evaluate(classifier, labels, values):
+    """Classifies the provided values and generates stats based on  the labels.
+
+    Args:
+        classifier: A classifier instance that conforms to the BinaryClassifier spec.
+        labels: List of integer labels.
+        values: List of list-like objects, all with the same dimensionality.
+    Returns:
+        A dictionary of performance statistics.
+    """
+    test_results = [(label, classifier.predict(value)[0][1])
+                    for label, value in zip(labels, values)]
+    accuracy = len([1 for x in test_results if x[0] == x[1]])
+    accuracy /= float(len(test_results))
+    return {'accuracy': accuracy}
