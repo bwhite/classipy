@@ -22,7 +22,7 @@ import unittest
 
 import numpy as np
 
-from classipy.classifiers import svm
+import classipy
 
 
 class Test(unittest.TestCase):
@@ -32,7 +32,7 @@ class Test(unittest.TestCase):
         train_values = [[0.], [1.], [2.], [3.], [4.]]
         #train_values = map(np.array, train_values)
         # Test
-        c = svm.SVM(options={'t': '0'})
+        c = classipy.SVM(options={'t': '0'})
         c.train(train_labels, train_values)
         self.assertEqual(c.predict([0.])[0][1], -1)
         self.assertEqual(c.predict([2.])[0][1], 1)
