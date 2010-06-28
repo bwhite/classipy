@@ -45,7 +45,6 @@ class SVM(BinaryClassifier):
             labels: List of integer labels
             values: List of list-like objects, all with the same dimensionality.
         """
-        #values = self._train_normalize(values)
         values = self._convert_values(values)
         prob  = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
@@ -62,7 +61,6 @@ class SVM(BinaryClassifier):
         Returns:
             Sorted (descending) list of (confidence, label)
         """
-        #value = self._normalize(value)
         value = self._convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
         return [(0., labels[0])]
