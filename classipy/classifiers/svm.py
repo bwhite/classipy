@@ -37,34 +37,6 @@ class SVM(BinaryClassifier):
             self._param = ''
         self._param += ' -q'  # Makes silent
         self.to_type = list
-
-    def _train_normalize(self, values):
-        """Learns the min/max for a series of values, setting _shift, _scale.
-
-        Args:
-            values: List of list-like objects, all with the same dimensionality.
-        """
-        values = self._convert_values(values)
-        values = np.array(values)
-        mi = np.min(values, 0)
-        ma = np.max(values, 0)
-        self._shift = mi
-        self._scale = 1 / (ma - mi)
-        self._scale[np.isinf(self._scale)] = 0.  # Force inf to zero
-        return [self._normalize(x) for x in values]
-
-    def _normalize(self, value):
-        """Normalizes a value [0, 1]
-
-        Args:
-            values: List-like object.
-        Returns:
-            Normalized value
-        """
-        value = np.array(value)
-        value -= self._shift
-        value *= self._scale
-        return self._convert_value(value)
         
     def train(self, labels, values):
         """Build a model.
@@ -73,7 +45,8 @@ class SVM(BinaryClassifier):
             labels: List of integer labels
             values: List of list-like objects, all with the same dimensionality.
         """
-        values = self._train_normalize(values)
+        #values = self._train_normalize(values)
+        values = self._convert_values(values)
         prob  = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
         self._m = libsvm.svmutil.svm_train(prob, param)
@@ -89,9 +62,9 @@ class SVM(BinaryClassifier):
         Returns:
             Sorted (descending) list of (confidence, label)
         """
-        value = self._normalize(value)
+        #value = self._normalize(value)
+        value = self._convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
-        print(labels)
         return [(0., labels[0])]
 
 def main():

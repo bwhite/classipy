@@ -38,7 +38,7 @@ class BinaryClassifier(object):
 
         Args:
             value: A value in a valid to_type.
-            to_type: Overrides self.to_type
+            to_type: Overrides self.to_type (default None)
 
         Returns:
             Value in the type specified by to_type.
@@ -56,14 +56,45 @@ class BinaryClassifier(object):
         if to_type == list:
             return list(value)
 
-    def _convert_values(self, values):
+    def _convert_values(self, values, to_type=None):
         """Converts an iterator of values to a list of to_type.
 
         Args:
             values: A list of values (must be homogeneous)
+            to_type: Overrides self.to_type (default None)
 
         Returns:
             A list of values in the type specified by to_type.
         """
         # TODO It would be nicer if numpy returned a 2D numpy array
-        return [self._convert_value(value) for value in values]
+        return [self._convert_value(value, to_type) for value in values]
+
+    def _train_normalize(self, values):
+        """Learns the min/max for a series of values, setting _shift, _scale.
+
+        Args:
+            values: List of list-like objects, all with the same dimensionality.
+        Returns:
+            Normalized values.
+        """
+        values = self._convert_values(values)
+        values = np.array(values)
+        mi = np.min(values, 0)
+        ma = np.max(values, 0)
+        self._shift = mi
+        self._scale = 1 / (ma - mi)
+        self._scale[np.isinf(self._scale)] = 0.  # Force inf to zero
+        return [self._normalize(x) for x in values]
+
+    def _normalize(self, value):
+        """Normalizes a value [0, 1]
+
+        Args:
+            values: List-like object.
+        Returns:
+            Normalized value
+        """
+        value = self._convert_value(value, to_type=np.ndarray)
+        value -= self._shift
+        value *= self._scale
+        return self._convert_value(value)

@@ -34,5 +34,6 @@ class Test(unittest.TestCase):
         # Test - K=1
         print(classipy.cross_validation(classipy.KNN, labels, values))
 
+
 if __name__ == '__main__':
     unittest.main()

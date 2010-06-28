@@ -20,6 +20,7 @@
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
+import itertools
 import random
 
 import numpy as np
@@ -48,23 +49,103 @@ def cross_validation(classifier_class, labels, values, num_folds=10, options=Non
     for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
         c = classifier_class(options=options)
-        c.train(*zip(*train_labels_values))        
-        accuracy_sum += evaluate(c, *zip(*folds[test_num]))['accuracy']
+        c.train(*zip(*train_labels_values))
+        out = evaluate(c, *zip(*folds[test_num]))
+        print(out)
+        accuracy_sum += out['accuracy']
     return accuracy_sum / num_folds
 
 
-def evaluate(classifier, labels, values):
+def _confusion_stats(confusion):
+    """Generates statistics given a square confusion matrix.
+
+    Args:
+        confusion: A square sparse confusion matrix in the form of a dict of
+            dicts such that confusion[true_label][pred_label].  All values are
+            expected to be integers, missing values are taken as zeros.
+    Returns:
+        A dictionary of performance statistics (precision, recall, accuracy)
+    """
+    overall_total = 0.
+    overall_correct = 0.
+    precision = {}
+    recall = {}
+    for true_label in confusion:
+        # Generate base level statistics
+        row_sum = sum(confusion[true_label].values())
+        col_sum = sum([confusion[x][true_label]
+                       for x in confusion if confusion[x].has_key(true_label)])
+        tp = confusion[true_label][true_label] # Num True == Predict == cur class
+        fn = row_sum - tp # Num True == cur class and Predict != cur class
+        fp = col_sum - tp # Num True != cur class and Predict == cur class
+        overall_correct += tp
+        overall_total += row_sum
+        # Generate relevant output statistics
+        try:
+            precision[true_label] = tp / float(tp + fp)
+        except ZeroDivisionError:
+            precision[true_label] = float('nan')
+        try:
+            recall[true_label] = tp / float(tp + fn)
+        except ZeroDivisionError:
+            recall[true_label] = float('nan')
+    accuracy = overall_correct / float(overall_total)
+    return {'accuracy': accuracy, 'precision': precision, 'recall': recall}
+
+
+def evaluate(classifier, labels, values, class_selector=None):
     """Classifies the provided values and generates stats based on  the labels.
 
     Args:
-        classifier: A classifier instance that conforms to the BinaryClassifier spec.
+        classifier: A classifier instance that conforms to the BinaryClassifier
+            spec.
         labels: List of integer labels.
         values: List of list-like objects, all with the same dimensionality.
+        class_selector: Function that takes classifier output and returns a
+            label. If None (default) then use first class label (highest
+            confidence).
     Returns:
         A dictionary of performance statistics.
     """
-    test_results = [(label, classifier.predict(value)[0][1])
+    if class_selector == None:
+        class_selector = lambda x: x[0][1]
+    test_results = [(label, class_selector(classifier.predict(value)))
                     for label, value in zip(labels, values)]
-    accuracy = len([1 for x in test_results if x[0] == x[1]])
-    accuracy /= float(len(test_results))
-    return {'accuracy': accuracy}
+    confusion = {}
+    # Generate confusion matrix [true_label][pred_label]
+    for true_label, pred_label in test_results:
+        try:
+            confusion[true_label][pred_label] += 1
+        except KeyError:
+            try:
+                confusion[true_label][pred_label] = 1
+            except KeyError:
+                confusion[true_label] = {pred_label: 1}
+    return _confusion_stats(confusion)
+
+
+def multi_evaluate(classifiers, labels, values, class_selectors=None):
+    """Classifies the provided values and generates stats based on  the labels.
+
+    Args:
+        classifiers: A list of classifiers that conforms to the BinaryClassifier spec.
+        labels: List of integer labels.
+        values: List of list-like objects, all with the same dimensionality.
+        class_selectors: List of functions (one per classifier, if less then
+            reuse last) that take classifier output and return label. If None
+            (default) then use first class label (highest confidence).
+
+    Returns:
+        A dictionary of performance statistics.
+    """
+    if class_selectors == None:
+        class_selectors = [lambda x: x[0][1]]
+    classifier_output = []
+    for sel, cls in itertools.izip_longest(class_selectors, classifiers):
+        classifier_output.append(evaluate(cls, labels, values, sel))
+    """TODO
+    1. For binary classifiers generate full comparison lists for ROC/PR curves
+    2. Generate confusion matrices using highest confidence metric
+    3. 
+    """
+    return {'classifier_output': classifier_output}
