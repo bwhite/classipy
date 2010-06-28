@@ -33,24 +33,27 @@ class BinaryClassifier(object):
         super(BinaryClassifier, self).__init__()
         self.to_type = list  #  Either numpy.ndarray, tuple, or list.
     
-    def _convert_value(self, value):
+    def _convert_value(self, value, to_type=None):
         """Converts value to to_type.
 
         Args:
             value: A value in a valid to_type.
+            to_type: Overrides self.to_type
 
         Returns:
             Value in the type specified by to_type.
         """
-        if isinstance(value, self.to_type):  # Same type, quit early
+        if to_type == None:
+            to_type = self.to_type
+        if isinstance(value, to_type):  # Same type, quit early
             return value
-        if self.to_type == np.ndarray: # If it needs to be numpy
+        if to_type == np.ndarray: # If it needs to be numpy
             return np.array(value)
         if isinstance(value, np.ndarray): # We know to_type isn't numpy
             value = value.tolist()
-        if self.to_type == tuple:
+        if to_type == tuple:
             return tuple(value)
-        if self.to_type == list:
+        if to_type == list:
             return list(value)
 
     def _convert_values(self, values):
@@ -62,4 +65,5 @@ class BinaryClassifier(object):
         Returns:
             A list of values in the type specified by to_type.
         """
+        # TODO It would be nicer if numpy returned a 2D numpy array
         return [self._convert_value(value) for value in values]
