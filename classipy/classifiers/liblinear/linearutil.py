@@ -202,8 +202,6 @@ def predict(y, x, m, options=""):
 	if len(y) == 0:
 		y = [0] * len(x)
 	ACC = evaluations(y, pred_labels)
-	l = len(y)
-	print("Accuracy = %g%% (%d/%d)" % (ACC, int(l*ACC//100), l))
 
-	return pred_labels, ACC, pred_values
+	return pred_labels, (None, None, None), pred_values
 	

@@ -38,5 +38,20 @@ class Test(unittest.TestCase):
         self.assertEqual(c.predict([2.])[0][1], 1)
         self.assertEqual(c.predict([4.])[0][1], 1)
 
+    def test_traintest1(self):
+        # Data
+        train_labels = [-1] * 50 + [1] * 50
+        train_values = np.random.normal(loc=-5, size=50).tolist()
+        train_values += np.random.normal(loc=5, size=50).tolist()
+        train_values = [[x] for x in train_values]
+        print(train_values)
+        # Test
+        c = classipy.SVMLinear({'B': '1'})
+        c.train(train_labels, train_values)
+        self.assertEqual(c.predict([-5.])[0][1], -1)
+        self.assertEqual(c.predict([-10.])[0][1], -1)
+        self.assertEqual(c.predict([5.])[0][1], 1)
+        self.assertEqual(c.predict([10.])[0][1], 1)
+
 if __name__ == '__main__':
     unittest.main()
