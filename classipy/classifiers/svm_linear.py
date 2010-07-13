@@ -20,6 +20,7 @@
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
+import math
 import numpy as np
 
 import liblinear.linear
@@ -31,9 +32,13 @@ from base import BinaryClassifier
 class SVMLinear(BinaryClassifier):
     def __init__(self, options=None):
         super(SVMLinear, self).__init__()
+        self._predict_param = ''
         try:
+            if 'b' in options:
+                self._predict_param= '-b %s' % (options['b'])
+                del options['b']
             self._param = ' '.join(['-%s %s' % x for x in options.items()])
-        except AttributeError:
+        except (AttributeError, TypeError):
             self._param = ''
         self._param += ' -q'  # Makes silent
         self.to_type = list
@@ -62,8 +67,8 @@ class SVMLinear(BinaryClassifier):
             Sorted (descending) list of (confidence, label)
         """
         value = self._convert_value(value)
-        labels, stats, confidence = liblinear.linearutil.predict([-1], [value], self._m)
-        return [(0., labels[0])]
+        labels, stats, confidence = liblinear.linearutil.predict([-1], [value], self._m, options=self._predict_param)
+        return [(math.fabs(confidence[0][0]), labels[0])]
 
 def main():
     print(__doc__)

@@ -20,6 +20,7 @@
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
+import math
 import numpy as np
 
 import libsvm.svm
@@ -63,7 +64,7 @@ class SVM(BinaryClassifier):
         """
         value = self._convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
-        return [(0., labels[0])]
+        return [(math.fabs(confidence[0][0]), labels[0])]
 
 def main():
     print(__doc__)

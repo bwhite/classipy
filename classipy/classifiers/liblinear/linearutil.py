@@ -199,9 +199,5 @@ def predict(y, x, m, options=""):
 			values = dec_values[:nr_classifier]
 			pred_labels += [label]
 			pred_values += [values]
-	if len(y) == 0:
-		y = [0] * len(x)
-	ACC = evaluations(y, pred_labels)
-
 	return pred_labels, (None, None, None), pred_values
 	

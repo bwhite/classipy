@@ -44,7 +44,7 @@ class Test(unittest.TestCase):
         train_values = np.random.normal(loc=-5, size=50).tolist()
         train_values += np.random.normal(loc=5, size=50).tolist()
         train_values = [[x] for x in train_values]
-        print(train_values)
+        #print(train_values)
         # Test
         c = classipy.SVMLinear({'B': '1'})
         c.train(train_labels, train_values)
