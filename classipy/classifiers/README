@@ -27,6 +27,8 @@ class MyClassifier(BinaryClassifier):
         Args:
             labels: List of integer labels.
             values: List of list-like objects, all with the same dimensionality.
+        Returns:
+	    self
         """
 
     def predict(self, value):

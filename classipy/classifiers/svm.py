@@ -45,11 +45,14 @@ class SVM(BinaryClassifier):
         Args:
             labels: List of integer labels
             values: List of list-like objects, all with the same dimensionality.
+        Returns:
+            self
         """
         values = self._convert_values(values)
         prob  = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
         self._m = libsvm.svmutil.svm_train(prob, param)
+        return self
 
     def predict(self, value):
         """Evaluates a single value against the training data.

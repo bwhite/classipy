@@ -49,11 +49,14 @@ class SVMLinear(BinaryClassifier):
         Args:
             labels: List of integer labels
             values: List of list-like objects, all with the same dimensionality.
+        Returns:
+            self
         """
         values = self._convert_values(values)
         prob  = liblinear.linear.problem(labels, values)
         param = liblinear.linear.parameter(self._param)
         self._m = liblinear.linearutil.train(prob, param)
+        return self
 
     def predict(self, value):
         """Evaluates a single value against the training data.

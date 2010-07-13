@@ -39,10 +39,13 @@ class KNN(BinaryClassifier):
         Args:
             labels: List of integer labels.
             values: List of list-like objects, all with the same dimensionality.
+        Returns:
+            self
         """
         values = self._convert_values(values)
         self._labels = labels
         self._values = values
+        return self
 
     def predict(self, value):
         """Evaluates a single value against the training data.
