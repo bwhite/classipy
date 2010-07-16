@@ -26,24 +26,24 @@ import random
 import numpy as np
 
 
-def cross_validation(classifier_class, labels, values, num_folds=10, options=None):
+def cross_validation(classifier_class, label_values, num_folds=10, options=None):
     """Performs cross validation on a BinaryClassifier.
 
+    Loads all label_values in memory to group them.
     Args:
         classifier_class: A classifier that conforms to the BinaryClassifier spec.
-        # TODO Change to label_values
-        labels: List of integer labels.
-        values: List of list-like objects, all with the same dimensionality.
+        label_values: Iterator of tuples of label and list of list-like objects.
+            Example: [(label, value), ...]
         num_folds: Number of partitions to split the data into (default 10).
     Returns:
         A dictionary of performance statistics.
     """
     # Randomly shuffle the data
-    labels_values = zip(labels, values)
-    random.shuffle(labels_values)
+    label_values = list(label_values)
+    random.shuffle(label_values)
     # Split up folds
-    fold_size = int(np.ceil(len(labels) / float(num_folds)))
-    folds = [labels_values[x * fold_size:(x + 1) * fold_size]
+    fold_size = int(np.ceil(len(label_values) / float(num_folds)))
+    folds = [label_values[x * fold_size:(x + 1) * fold_size]
              for x in range(num_folds)]
     # Iterate, leaving one fold out for testing each time
     accuracy_sum = 0.
@@ -115,16 +115,34 @@ def _confusion_stats(confusion):
             'tp': tps, 'fp': fps, 'fn': fns, 'total_true': total_true,
             'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1}
 
+def _gen_confusion(test_results):
+    """Generates a confusion matrix based on classifier test results.
 
-def evaluate(classifier, labels, values, class_selector=None):
+    Args:
+        test_results: Iterable of (true, pred) labels.
+    Returns:
+        Confusion matrix in the form conf[true_label][pred_label]
+    """
+    confusion = {}
+    for true_label, pred_label in test_results:
+        try:
+            confusion[true_label][pred_label] += 1
+        except KeyError:
+            try:
+                confusion[true_label][pred_label] = 1
+            except KeyError:
+                confusion[true_label] = {pred_label: 1}
+    return confusion
+
+
+def evaluate(classifier, label_values, class_selector=None):
     """Classifies the provided values and generates stats based on  the labels.
 
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-        # TODO Change to label_values
-        labels: List of integer labels.
-        values: List of list-like objects, all with the same dimensionality.
+        label_values: Iterator of tuples of label and list of list-like objects.
+            Example: [(label, value), ...]
         class_selector: Function that takes classifier output and returns a
             label. If None (default) then use first class label (highest
             confidence).
@@ -134,20 +152,12 @@ def evaluate(classifier, labels, values, class_selector=None):
     if class_selector == None:
         class_selector = lambda x: x[0][1]
     test_results = [(label, class_selector(classifier.predict(value)))
-                    for label, value in zip(labels, values)]
-    confusion = {}
-    # Generate confusion matrix [true_label][pred_label]
-    for true_label, pred_label in test_results:
-        try:
-            confusion[true_label][pred_label] += 1
-        except KeyError:
-            try:
-                confusion[true_label][pred_label] = 1
-            except KeyError:
-                confusion[true_label] = {pred_label: 1}
+                    for label, value in label_values]
+    confusion = _gen_confusion(test_results)
     return _confusion_stats(confusion)
 
-def confidence_stats(classifier, label_values):
+
+def confidence_stats(classifier, label_values, samples=None):
     """Classifies the provided values and generates stats based on  the labels.
 
     Assumes labels are either -1 or 1.
@@ -156,6 +166,8 @@ def confidence_stats(classifier, label_values):
             spec.
         label_values: Iterator of tuples of label and list of list-like objects.
             Example: [(label, value), ...]
+        samples: If None (default) then use every point.  Else select this many
+            uniform samples.
     Returns:
         A dictionary where key is threshold and value is performance stats dict
     """
@@ -163,34 +175,32 @@ def confidence_stats(classifier, label_values):
 
     test_confidences = [(label, conf(classifier.predict(value)))
                         for label, value in label_values]
-    confs = [x[1] for x in test_confidences] + [float('-inf'), float('inf')]
+    confs = [x[1] for x in test_confidences]
+    if samples == None:
+        confs += [float('-inf'), float('inf')]
+    else:
+        min_conf = min(confs)
+        max_conf = max(confs)
+        step = (max_conf - min_conf) / float(samples)
+        confs = np.arange(min_conf - step, max_conf + step, step).tolist()
     thresh_stats = {}
     for conf_thresh in confs:
         mkclass = lambda x: -1 if x < conf_thresh else 1
         test_results = ((x[0], mkclass(x[1])) for x in test_confidences)
-        confusion = {}
-        # Generate confusion matrix [true_label][pred_label]
-        for true_label, pred_label in test_results:
-            try:
-                confusion[true_label][pred_label] += 1
-            except KeyError:
-                try:
-                    confusion[true_label][pred_label] = 1
-                except KeyError:
-                    confusion[true_label] = {pred_label: 1}
+        confusion = _gen_confusion(test_results)
         thresh_stats[conf_thresh] = _confusion_stats(confusion)
     return thresh_stats
 
-def multi_evaluate(classifiers, labels, values, class_selectors=None):
+
+def multi_evaluate(classifiers, label_values, class_selectors=None):
     """Classifies the provided values and generates stats based on  the labels.
 
     Args:
         classifiers: A list of classifiers that conforms to the BinaryClassifier spec.
-        # TODO Change to label_values
-        labels: List of integer labels.
-        values: List of list-like objects, all with the same dimensionality.
+        label_values: Iterator of tuples of label and list of list-like objects.
+            Example: [(label, value), ...]
         class_selectors: List of functions (one per classifier, if less then
-            reuse last) that take classifier output and return label. If None
+            use default) that take classifier output and return label. If None
             (default) then use first class label (highest confidence).
 
     Returns:
@@ -200,12 +210,7 @@ def multi_evaluate(classifiers, labels, values, class_selectors=None):
         class_selectors = [lambda x: x[0][1]]
     classifier_output = []
     for sel, cls in itertools.izip_longest(class_selectors, classifiers):
-        classifier_output.append(evaluate(cls, labels, values, sel))
-    """TODO
-    1. For binary classifiers generate full comparison lists for ROC/PR curves
-    2. Generate confusion matrices using highest confidence metric
-    3. 
-    """
+        classifier_output.append(evaluate(cls, label_values, sel))
     return {'classifier_output': classifier_output}
 
 
@@ -216,6 +221,7 @@ def hard_negatives(classifier, label_values, class_selector=None):
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
         label_values: Iterator of tuples of label and list of list-like objects.
+            Example: [(label, value), ...]
         class_selector: Function that takes classifier output and returns a
             label. If None (default) then use first class label (highest
             confidence).
