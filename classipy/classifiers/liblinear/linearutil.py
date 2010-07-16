@@ -132,7 +132,7 @@ def train(arg1, arg2=None, arg3=None):
 		m.x_space = prob.x_space
 		return m
 
-def predict(y, x, m, options=""):
+def predict(y, x, m, options="", issparse=False):
 	"""
 	predict(y, x, m [, "options"]) -> (p_labels, p_acc, p_vals)
 
@@ -180,7 +180,8 @@ def predict(y, x, m, options=""):
 			raise TypeError('probability output is only supported for logistic regression')
 		prob_estimates = (c_double * nr_class)()
 		for xi in x:
-			xi, idx = gen_feature_nodearray(xi, feature_max=nr_feature)
+			#feature_max=nr_feature,
+			xi, idx = gen_feature_nodearray(xi, issparse=issparse)
 			xi[-2] = biasterm
 			label = liblinear.predict_probability(m, xi, prob_estimates)
 			values = prob_estimates[:nr_class]
@@ -193,7 +194,8 @@ def predict(y, x, m, options=""):
 			nr_classifier = nr_class
 		dec_values = (c_double * nr_classifier)()
 		for xi in x:
-			xi, idx = gen_feature_nodearray(xi, feature_max=nr_feature)
+			#feature_max=nr_feature,
+			xi, idx = gen_feature_nodearray(xi, issparse=issparse)
 			xi[-2] = biasterm
 			label = liblinear.predict_values(m, xi, dec_values)
 			values = dec_values[:nr_classifier]

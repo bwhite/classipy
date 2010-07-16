@@ -31,6 +31,7 @@ def cross_validation(classifier_class, labels, values, num_folds=10, options=Non
 
     Args:
         classifier_class: A classifier that conforms to the BinaryClassifier spec.
+        # TODO Change to label_values
         labels: List of integer labels.
         values: List of list-like objects, all with the same dimensionality.
         num_folds: Number of partitions to split the data into (default 10).
@@ -70,16 +71,33 @@ def _confusion_stats(confusion):
     overall_correct = 0.
     precision = {}
     recall = {}
+    f1 = {}
+    miss_rate = {}
+    tps = {}
+    fns = {}
+    fps = {}
+    total_true = {}
+    total_pred = {}
+    overall_total = sum([sum(x.values()) for x in confusion.values()])
     for true_label in confusion:
         # Generate base level statistics
+        # row_sum is num of true examples for the cur label
         row_sum = sum(confusion[true_label].values())
+        # col_sum is num of predicted examples for the cur label
         col_sum = sum([confusion[x][true_label]
                        for x in confusion if confusion[x].has_key(true_label)])
-        tp = confusion[true_label][true_label] # Num True == Predict == cur class
+        try:
+            tp = confusion[true_label][true_label] # Num True == Predict == cur class
+        except KeyError:
+            tp = 0
         fn = row_sum - tp # Num True == cur class and Predict != cur class
         fp = col_sum - tp # Num True != cur class and Predict == cur class
+        total_true[true_label] = row_sum
+        total_pred[true_label] = col_sum
+        tps[true_label] = tp
+        fps[true_label] = fp
+        fns[true_label] = fn
         overall_correct += tp
-        overall_total += row_sum
         # Generate relevant output statistics
         try:
             precision[true_label] = tp / float(tp + fp)
@@ -89,8 +107,13 @@ def _confusion_stats(confusion):
             recall[true_label] = tp / float(tp + fn)
         except ZeroDivisionError:
             recall[true_label] = float('nan')
+        f1[true_label] = 2. * precision[true_label] * recall[true_label]
+        f1[true_label] /= (precision[true_label] + recall[true_label])
+        miss_rate[true_label] = 1 - recall[true_label]
     accuracy = overall_correct / float(overall_total)
-    return {'accuracy': accuracy, 'precision': precision, 'recall': recall}
+    return {'accuracy': accuracy, 'precision': precision, 'recall': recall,
+            'tp': tps, 'fp': fps, 'fn': fns, 'total_true': total_true,
+            'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1}
 
 
 def evaluate(classifier, labels, values, class_selector=None):
@@ -99,6 +122,7 @@ def evaluate(classifier, labels, values, class_selector=None):
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
+        # TODO Change to label_values
         labels: List of integer labels.
         values: List of list-like objects, all with the same dimensionality.
         class_selector: Function that takes classifier output and returns a
@@ -123,12 +147,46 @@ def evaluate(classifier, labels, values, class_selector=None):
                 confusion[true_label] = {pred_label: 1}
     return _confusion_stats(confusion)
 
+def confidence_stats(classifier, label_values):
+    """Classifies the provided values and generates stats based on  the labels.
+
+    Assumes labels are either -1 or 1.
+    Args:
+        classifier: A classifier instance that conforms to the BinaryClassifier
+            spec.
+        label_values: Iterator of tuples of label and list of list-like objects.
+            Example: [(label, value), ...]
+    Returns:
+        A dictionary where key is threshold and value is performance stats dict
+    """
+    conf = lambda x: x[0][0] * x[0][1]
+
+    test_confidences = [(label, conf(classifier.predict(value)))
+                        for label, value in label_values]
+    confs = [x[1] for x in test_confidences] + [float('-inf'), float('inf')]
+    thresh_stats = {}
+    for conf_thresh in confs:
+        mkclass = lambda x: -1 if x < conf_thresh else 1
+        test_results = ((x[0], mkclass(x[1])) for x in test_confidences)
+        confusion = {}
+        # Generate confusion matrix [true_label][pred_label]
+        for true_label, pred_label in test_results:
+            try:
+                confusion[true_label][pred_label] += 1
+            except KeyError:
+                try:
+                    confusion[true_label][pred_label] = 1
+                except KeyError:
+                    confusion[true_label] = {pred_label: 1}
+        thresh_stats[conf_thresh] = _confusion_stats(confusion)
+    return thresh_stats
 
 def multi_evaluate(classifiers, labels, values, class_selectors=None):
     """Classifies the provided values and generates stats based on  the labels.
 
     Args:
         classifiers: A list of classifiers that conforms to the BinaryClassifier spec.
+        # TODO Change to label_values
         labels: List of integer labels.
         values: List of list-like objects, all with the same dimensionality.
         class_selectors: List of functions (one per classifier, if less then
@@ -149,3 +207,23 @@ def multi_evaluate(classifiers, labels, values, class_selectors=None):
     3. 
     """
     return {'classifier_output': classifier_output}
+
+
+def hard_negatives(classifier, label_values, class_selector=None):
+    """Classifies the provided values and generates stats based on  the labels.
+
+    Args:
+        classifier: A classifier instance that conforms to the BinaryClassifier
+            spec.
+        label_values: Iterator of tuples of label and list of list-like objects.
+        class_selector: Function that takes classifier output and returns a
+            label. If None (default) then use first class label (highest
+            confidence).
+    Returns:
+        An iterator of values that correspond to false positives.
+    """
+    if class_selector == None:
+        class_selector = lambda x: x[0][1]
+    for label, value in label_values:
+        if label != class_selector(classifier.predict(value)):
+            yield value
