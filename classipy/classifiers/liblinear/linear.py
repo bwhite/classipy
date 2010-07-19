@@ -38,7 +38,7 @@ class feature_node(Structure):
 
 def gen_feature_nodearray(xi, feature_max=None, issparse=True, pregen=False):
         if pregen:
-            return xi, len(xi)
+            return xi, len(xi) - 2
 	if isinstance(xi, dict):
 		index_range = xi.keys()
 	elif isinstance(xi, (list, tuple)):

@@ -27,6 +27,7 @@ import liblinear.linear
 import liblinear.linearutil
 
 from base import BinaryClassifier
+import classipy
 
 
 class SVMLinear(BinaryClassifier):
@@ -54,7 +55,7 @@ class SVMLinear(BinaryClassifier):
         """
         labels, values = zip(*list(label_values))
         values = self._convert_values(values)
-        prob  = liblinear.linear.problem(labels, values)
+        prob  = liblinear.linear.problem(labels, values, pregen=True)
         param = liblinear.linear.parameter(self._param)
         self._m = liblinear.linearutil.train(prob, param)
         return self
@@ -83,6 +84,8 @@ class SVMLinear(BinaryClassifier):
         Returns:
             Value in an efficient representation.
         """
+        if isinstance(value[0], liblinear.linear.feature_node):
+            return value
         value = super(SVMLinear, self)._convert_value(value, *args, **kw)
         return liblinear.linear.gen_feature_nodearray(value, issparse=False)[0]
 

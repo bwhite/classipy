@@ -26,10 +26,28 @@ import random
 import numpy as np
 
 
+def convert_values(classifier_class, label_values, options=None):
+    """Convert label_values to the type expected by the specified class.
+
+    Use to pre-convert if values are to be used several times.  Loads all
+    label_values in memory to group them.
+    Args:
+        classifier_class: A classifier that conforms to the BinaryClassifier spec.
+	label_values: Iterable of tuples of label and list-like objects.
+            Example: [(label, value), ...]
+    Returns:
+        Converted label_values.
+    """
+    label_values = list(label_values)
+    labels, values = zip(*label_values)
+    values = classifier_class(options=options)._convert_values(values)
+    return zip(labels, values)
+
 def cross_validation(classifier_class, label_values, num_folds=10, options=None):
     """Performs cross validation on a BinaryClassifier.
 
-    Loads all label_values in memory to group them.
+    The same partitions will be produced if random.seed is used before this is
+    called.  Loads all label_values in memory to group them.
     Args:
         classifier_class: A classifier that conforms to the BinaryClassifier spec.
 	label_values: Iterable of tuples of label and list-like objects.
@@ -39,12 +57,7 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
         A dictionary of performance statistics.
     """
     # Randomly shuffle the data
-    def convert_values(label_values):
-        label_values = list(label_values)
-        labels, values = zip(*label_values)
-        values = classifier_class(options=options)._convert_values(values)
-        return zip(labels, values)
-    label_values = convert_values(label_values)
+    label_values = list(label_values)
     random.shuffle(label_values)
     # Split up folds
     fold_size = int(np.ceil(len(label_values) / float(num_folds)))
