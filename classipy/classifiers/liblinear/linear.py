@@ -39,19 +39,19 @@ class feature_node(Structure):
 def gen_feature_nodearray(xi, feature_max=None, issparse=True):
 	if isinstance(xi, dict):
 		index_range = xi.keys()
+                index_range.sort()
 	elif isinstance(xi, (list, tuple)):
 		xi = [0] + xi  # idx should start from 1
 		index_range = range(1, len(xi))
 	else:
 		raise TypeError('xi should be a dictionary, list or tuple')
-
 	if feature_max:
 		assert(isinstance(feature_max, int))
 		index_range = filter(lambda j: j <= feature_max, index_range)
+                index_range.sort()
 	if issparse: 
 		index_range = filter(lambda j:xi[j] != 0, index_range)
-
-	index_range = sorted(index_range)
+                index_range.sort()
 	ret = (feature_node * (len(index_range)+2))()
 	ret[-1].index = -1 # for bias term
 	ret[-2].index = -1

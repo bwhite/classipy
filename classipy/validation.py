@@ -39,7 +39,12 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
         A dictionary of performance statistics.
     """
     # Randomly shuffle the data
-    label_values = list(label_values)
+    def convert_values(label_values):
+        label_values = list(label_values)
+        labels, values = zip(*label_values)
+        values = classifier_class(options=options)._convert_values(values)
+        return zip(labels, values)
+    label_values = convert_values(label_values)
     random.shuffle(label_values)
     # Split up folds
     fold_size = int(np.ceil(len(label_values) / float(num_folds)))
@@ -52,6 +57,7 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
         c = classifier_class(options=options)
         c.train(train_labels_values)
         out = evaluate(c, folds[test_num])
+        print(out)
         accuracy_sum += out['accuracy']
     return accuracy_sum / num_folds
 
