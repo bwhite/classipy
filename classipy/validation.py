@@ -52,7 +52,6 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
         c = classifier_class(options=options)
         c.train(train_labels_values)
         out = evaluate(c, folds[test_num])
-        print(out)
         accuracy_sum += out['accuracy']
     return accuracy_sum / num_folds
 
