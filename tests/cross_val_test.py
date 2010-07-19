@@ -31,8 +31,9 @@ class Test(unittest.TestCase):
         values += list(.5 + np.random.random((100, 1)))
         labels = [0] * 100
         labels += [1] * 100
+        label_values = zip(labels, values)
         # Test - K=1
-        print(classipy.cross_validation(classipy.KNN, labels, values))
+        print(classipy.cross_validation(classipy.KNN, label_values))
 
 
 if __name__ == '__main__':

@@ -35,17 +35,20 @@ class Test(unittest.TestCase):
         # Test - K=1
         test_output = [(1, 1)]
         c = classipy.KNN()
-        c.train(train_labels, train_values)
+        train_label_values = zip(train_labels, train_values)
+        c.train(train_label_values)
         self.assertEqual(c.predict(test_value), test_output)
         # Test - K=3
         test_output = [(3, 1)]
         c = classipy.KNN(options={'k': 3})
-        c.train(train_labels, train_values)
+        train_label_values = zip(train_labels, train_values)
+        c.train(train_label_values)
         self.assertEqual(c.predict(test_value), test_output)
         # Test - K=5
         test_output = [(3, 1), (2, 0)]
         c = classipy.KNN(options={'k': 5})
-        c.train(train_labels, train_values)
+        train_label_values = zip(train_labels, train_values)
+        c.train(train_label_values)
         self.assertEqual(c.predict(test_value), test_output)
 
 

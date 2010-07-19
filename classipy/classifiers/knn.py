@@ -33,15 +33,16 @@ class KNN(BinaryClassifier):
             self._k = 1
         self.to_type = np.ndarray
 
-    def train(self, labels, values):
+    def train(self, label_values):
         """Stores the training data internally.
 
         Args:
-            labels: List of integer labels.
-            values: List of list-like objects, all with the same dimensionality.
+	label_values: Iteratable of tuples of label and list-like objects.
+            Example: [(label, value), ...]
         Returns:
             self
         """
+        labels, values = zip(*list(label_values))
         values = self._convert_values(values)
         self._labels = labels
         self._values = values

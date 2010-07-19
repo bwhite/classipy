@@ -33,7 +33,8 @@ class Test(unittest.TestCase):
         #train_values = map(np.array, train_values)
         # Test
         c = classipy.SVMLinear({'B': '1'})
-        c.train(train_labels, train_values)
+        train_label_values = zip(train_labels, train_values)
+        c.train(train_label_values)
         self.assertEqual(c.predict([0.])[0][1], -1)
         self.assertEqual(c.predict([2.])[0][1], 1)
         self.assertEqual(c.predict([4.])[0][1], 1)
@@ -47,7 +48,8 @@ class Test(unittest.TestCase):
         #print(train_values)
         # Test
         c = classipy.SVMLinear({'B': '1'})
-        c.train(train_labels, train_values)
+        train_label_values = zip(train_labels, train_values)
+        c.train(train_label_values)
         self.assertEqual(c.predict([-5.])[0][1], -1)
         self.assertEqual(c.predict([-10.])[0][1], -1)
         self.assertEqual(c.predict([5.])[0][1], 1)

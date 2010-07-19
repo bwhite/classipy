@@ -43,15 +43,16 @@ class SVMLinear(BinaryClassifier):
         self._param += ' -q'  # Makes silent
         self.to_type = list
         
-    def train(self, labels, values):
+    def train(self, label_values):
         """Build a model.
 
         Args:
-            labels: List of integer labels
-            values: List of list-like objects, all with the same dimensionality.
+	label_values: Iteratable of tuples of label and list-like objects.
+            Example: [(label, value), ...]
         Returns:
             self
         """
+        labels, values = zip(*list(label_values))
         values = self._convert_values(values)
         prob  = liblinear.linear.problem(labels, values)
         param = liblinear.linear.parameter(self._param)

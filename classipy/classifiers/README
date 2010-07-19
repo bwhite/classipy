@@ -21,12 +21,12 @@ class MyClassifier(BinaryClassifier):
 	super(MyClassifier, self).__init__(options)
         self.to_type = list #  Either numpy.ndarray, tuple, or list.
 
-   def train(self, labels, values):
+   def train(self, label_values):
         """Trains a classifier whos model is held internally.
 
         Args:
-            labels: List of integer labels.
-            values: List of list-like objects, all with the same dimensionality.
+	label_values: Iteratable of tuples of label and list-like objects.
+            Example: [(label, value), ...]
         Returns:
 	    self
         """

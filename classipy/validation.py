@@ -50,8 +50,8 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
     for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
         c = classifier_class(options=options)
-        c.train(*zip(*train_labels_values))
-        out = evaluate(c, *zip(*folds[test_num]))
+        c.train(train_labels_values)
+        out = evaluate(c, folds[test_num])
         print(out)
         accuracy_sum += out['accuracy']
     return accuracy_sum / num_folds
