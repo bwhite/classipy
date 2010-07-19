@@ -36,7 +36,9 @@ class feature_node(Structure):
 	_types = [c_int, c_double]
 	_fields_ = genFields(_names, _types)
 
-def gen_feature_nodearray(xi, feature_max=None, issparse=True):
+def gen_feature_nodearray(xi, feature_max=None, issparse=True, pregen=False):
+        if pregen:
+            return xi, len(xi)
 	if isinstance(xi, dict):
 		index_range = xi.keys()
                 index_range.sort()
@@ -68,7 +70,7 @@ class problem(Structure):
 	_types = [c_int, c_int, POINTER(c_int), POINTER(POINTER(feature_node)), c_double]
 	_fields_ = genFields(_names, _types)
 
-	def __init__(self, y, x, bias = -1):
+	def __init__(self, y, x, bias = -1, pregen=False):
 		if len(y) != len(x) :
 			raise ValueError("len(y) != len(x)")
 		self.l = l = len(y)
@@ -77,7 +79,7 @@ class problem(Structure):
 		max_idx = 0
 		x_space = self.x_space = []
 		for i, xi in enumerate(x):
-			tmp_xi, tmp_idx = gen_feature_nodearray(xi)
+			tmp_xi, tmp_idx = gen_feature_nodearray(xi, pregen=pregen)
 			x_space += [tmp_xi]
 			max_idx = max(max_idx, tmp_idx)
 		self.n = max_idx

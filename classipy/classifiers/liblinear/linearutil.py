@@ -61,7 +61,7 @@ def evaluations(ty, pv):
 	ACC = 100.0*total_correct/l
 	return ACC
 
-def train(arg1, arg2=None, arg3=None):
+def train(arg1, arg2=None, arg3=None, pregen=True):
 	"""
 	train(y, x [, 'options']) -> model | ACC 
 	train(prob, [, 'options']) -> model | ACC
@@ -100,7 +100,7 @@ def train(arg1, arg2=None, arg3=None):
 	if isinstance(arg1, (list, tuple)):
 		assert isinstance(arg2, (list, tuple))
 		y, x, options = arg1, arg2, arg3
-		prob = problem(y, x)
+		prob = problem(y, x, pregen=pregen)
 		param = parameter(options)
 	elif isinstance(arg1, problem):
 		prob = arg1
@@ -132,7 +132,7 @@ def train(arg1, arg2=None, arg3=None):
 		m.x_space = prob.x_space
 		return m
 
-def predict(y, x, m, options="", issparse=False):
+def predict(y, x, m, options="", issparse=False, pregen=True):
 	"""
 	predict(y, x, m [, "options"]) -> (p_labels, p_acc, p_vals)
 
@@ -181,7 +181,7 @@ def predict(y, x, m, options="", issparse=False):
 		prob_estimates = (c_double * nr_class)()
 		for xi in x:
 			#feature_max=nr_feature,
-			xi, idx = gen_feature_nodearray(xi, issparse=issparse)
+			xi, idx= gen_feature_nodearray(xi, issparse=issparse, pregen=pregen)
 			xi[-2] = biasterm
 			label = liblinear.predict_probability(m, xi, prob_estimates)
 			values = prob_estimates[:nr_class]
@@ -195,7 +195,7 @@ def predict(y, x, m, options="", issparse=False):
 		dec_values = (c_double * nr_classifier)()
 		for xi in x:
 			#feature_max=nr_feature,
-			xi, idx = gen_feature_nodearray(xi, issparse=issparse)
+			xi, idx = gen_feature_nodearray(xi, issparse=issparse, pregen=pregen)
 			xi[-2] = biasterm
 			label = liblinear.predict_values(m, xi, dec_values)
 			values = dec_values[:nr_classifier]
