@@ -74,17 +74,16 @@ class SVMLinear(BinaryClassifier):
         labels, stats, confidence = liblinear.linearutil.predict([-1], [value], self._m, options=self._predict_param)
         return [(math.fabs(confidence[0][0]), labels[0])]
 
-    def _convert_value(self, value):
+    def _convert_value(self, value, *args, **kw):
         """Converts value to an efficient representation.
 
         Args:
             value: A value in a valid to_type.
-            to_type: Overrides self.to_type (default None)
 
         Returns:
             Value in an efficient representation.
         """
-        value = super(SVMLinear, self)._convert_value(value)
+        value = super(SVMLinear, self)._convert_value(value, *args, **kw)
         return liblinear.linear.gen_feature_nodearray(value, issparse=False)[0]
 
 
