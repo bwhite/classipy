@@ -37,7 +37,7 @@ class KNN(BinaryClassifier):
         """Stores the training data internally.
 
         Args:
-	label_values: Iteratable of tuples of label and list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         Returns:
             self

@@ -32,7 +32,7 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
     Loads all label_values in memory to group them.
     Args:
         classifier_class: A classifier that conforms to the BinaryClassifier spec.
-        label_values: Iterator of tuples of label and list of list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         num_folds: Number of partitions to split the data into (default 10).
     Returns:
@@ -141,7 +141,7 @@ def evaluate(classifier, label_values, class_selector=None):
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-        label_values: Iterator of tuples of label and list of list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         class_selector: Function that takes classifier output and returns a
             label. If None (default) then use first class label (highest
@@ -164,7 +164,7 @@ def confidence_stats(classifier, label_values, samples=None):
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-        label_values: Iterator of tuples of label and list of list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         samples: If None (default) then use every point.  Else select this many
             uniform samples.
@@ -197,7 +197,7 @@ def multi_evaluate(classifiers, label_values, class_selectors=None):
 
     Args:
         classifiers: A list of classifiers that conforms to the BinaryClassifier spec.
-        label_values: Iterator of tuples of label and list of list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         class_selectors: List of functions (one per classifier, if less then
             use default) that take classifier output and return label. If None
@@ -220,7 +220,7 @@ def hard_negatives(classifier, label_values, class_selector=None):
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-        label_values: Iterator of tuples of label and list of list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         class_selector: Function that takes classifier output and returns a
             label. If None (default) then use first class label (highest

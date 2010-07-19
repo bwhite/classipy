@@ -43,7 +43,7 @@ class SVM(BinaryClassifier):
         """Build a model.
 
         Args:
-	label_values: Iteratable of tuples of label and list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         Returns:
             self

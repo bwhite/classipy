@@ -25,7 +25,7 @@ class MyClassifier(BinaryClassifier):
         """Trains a classifier whos model is held internally.
 
         Args:
-	label_values: Iteratable of tuples of label and list-like objects.
+	label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         Returns:
 	    self

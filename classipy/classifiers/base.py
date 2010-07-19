@@ -57,7 +57,7 @@ class BinaryClassifier(object):
             return list(value)
 
     def _convert_values(self, values, to_type=None):
-        """Converts an iterator of values to a list of to_type.
+        """Converts an iterable of values to a list of to_type.
 
         Args:
             values: A list of values (must be homogeneous)
