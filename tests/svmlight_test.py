@@ -32,18 +32,14 @@ class Test(unittest.TestCase):
         train_values = [[0.], [1.], [2.], [3.], [4.]]
         #train_values = map(np.array, train_values)
         # Test
-        c = classipy.SVMLinear({'B': '1'})
+        c = classipy.SVMLight()
         train_label_values = zip(train_labels, train_values)
         c.train(train_label_values)
-        self.assertEqual(c._m.get_nr_class(), 2)
-        self.assertEqual(c._m.get_nr_feature(), 1)
-        self.assertEqual(c._m.is_probability_model(), False)
-        self.assertEqual(c._m.bias, 1)
-        self.assertEqual(c.predict([0.])[0][1], -1)
         self.assertEqual(c.predict([2.])[0][1], 1)
         self.assertEqual(c.predict([4.])[0][1], 1)
+        self.assertEqual(c.predict([0.])[0][1], -1)
 
-    def test_traintest1(self):
+    def testa_traintest1(self):
         # Data
         train_labels = [-1] * 50 + [1] * 50
         train_values = np.random.normal(loc=-5, size=50).tolist()

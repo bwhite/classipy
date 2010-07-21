@@ -39,34 +39,40 @@ class SVM(BinaryClassifier):
         self._param += ' -q'  # Makes silent
         self.to_type = list
         
-    def train(self, label_values):
+    def train(self, label_values, converted=False):
         """Build a model.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects.
+	label_values: Iterable of tuples of label and list-like objects
             Example: [(label, value), ...]
+            or the result of using convert_label_values if converted=True.
+        converted: If True then the input is in the correct internal format.
         Returns:
             self
         """
+        if not converted:
+            label_values = self.convert_label_values(label_values)
         labels, values = zip(*list(label_values))
-        values = self._convert_values(values)
         prob  = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
         self._m = libsvm.svmutil.svm_train(prob, param)
         return self
 
-    def predict(self, value):
+    def predict(self, value, converted=False):
         """Evaluates a single value against the training data.
 
         NOTE: Confidence is currently set to 0!
 
         Args:
-            value: List-like object with same dimensionality used for training.
+            value: List-like object with same dimensionality used for training
+                or the result of using convert_value if converted=True.
+            converted: If True then the input is in the correct internal format.
 
         Returns:
             Sorted (descending) list of (confidence, label)
         """
-        value = self._convert_value(value)
+        if not converted:
+            value = self.convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
         return [(math.fabs(confidence[0][0]), labels[0])]
 

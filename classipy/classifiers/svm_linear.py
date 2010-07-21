@@ -44,38 +44,43 @@ class SVMLinear(BinaryClassifier):
         self._param += ' -q'  # Makes silent
         self.to_type = list
         
-    def train(self, label_values):
+    def train(self, label_values, converted=False):
         """Build a model.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects.
+	label_values: Iterable of tuples of label and list-like objects
             Example: [(label, value), ...]
+            or the result of using convert_label_values if converted=True.
+        converted: If True then the input is in the correct internal format.
         Returns:
             self
         """
+        if not converted:
+            label_values = self.convert_label_values(label_values)
         labels, values = zip(*list(label_values))
-        values = self._convert_values(values)
         prob  = liblinear.linear.problem(labels, values, pregen=True)
         param = liblinear.linear.parameter(self._param)
         self._m = liblinear.linearutil.train(prob, param)
+        print('Bias %s' % (str(self._m.bias)))
         return self
 
-    def predict(self, value):
+    def predict(self, value, converted=False):
         """Evaluates a single value against the training data.
 
-        NOTE: Confidence is currently set to 0!
-
         Args:
-            value: List-like object with same dimensionality used for training.
+            value: List-like object with same dimensionality used for training
+                or the result of using convert_value if converted=True.
+            converted: If True then the input is in the correct internal format.
 
         Returns:
             Sorted (descending) list of (confidence, label)
         """
-        value = self._convert_value(value)
+        if not converted:
+            value = self.convert_value(value)
         labels, stats, confidence = liblinear.linearutil.predict([-1], [value], self._m, options=self._predict_param)
         return [(math.fabs(confidence[0][0]), labels[0])]
 
-    def _convert_value(self, value, *args, **kw):
+    def convert_value(self, value, *args, **kw):
         """Converts value to an efficient representation.
 
         Args:
@@ -86,7 +91,7 @@ class SVMLinear(BinaryClassifier):
         """
         if isinstance(value[0], liblinear.linear.feature_node):
             return value
-        value = super(SVMLinear, self)._convert_value(value, *args, **kw)
+        value = super(SVMLinear, self).convert_value(value, *args, **kw)
         return liblinear.linear.gen_feature_nodearray(value, issparse=False)[0]
 
 

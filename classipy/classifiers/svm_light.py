@@ -14,27 +14,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""K-Nearest Neighbor Classifier
+"""SVM Classifier
 """
 
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
+import math
 import numpy as np
 
+import svmlight
 from base import BinaryClassifier
 
-class KNN(BinaryClassifier):
+
+class SVMLight(BinaryClassifier):
     def __init__(self, options=None):
-        super(KNN, self).__init__()
-        try:
-            self._k = options['k']
-        except (KeyError, TypeError):
-            self._k = 1
-        self.to_type = np.ndarray
+        super(SVMLight, self).__init__()
+        self.to_type = list
 
     def train(self, label_values, converted=False):
-        """Stores the training data internally.
+        """Build a model.
 
         Args:
 	label_values: Iterable of tuples of label and list-like objects
@@ -46,10 +45,21 @@ class KNN(BinaryClassifier):
         """
         if not converted:
             label_values = self.convert_label_values(label_values)
-        labels, values = zip(*list(label_values))
-        self._labels = labels
-        self._values = values
+        self._m = svmlight.learn(list(label_values), type='classification',
+                                 verbosity=1)
         return self
+
+    def convert_value(self, value, *args, **kw):
+        """Converts value to an efficient representation.
+
+        Args:
+            value: A value in a valid to_type.
+
+        Returns:
+            Value in an efficient representation.
+        """
+        value = super(SVMLight, self).convert_value(value, *args, **kw)
+        return [(ind + 1, val) for ind, val in enumerate(value)]
 
     def predict(self, value, converted=False):
         """Evaluates a single value against the training data.
@@ -60,24 +70,13 @@ class KNN(BinaryClassifier):
             converted: If True then the input is in the correct internal format.
 
         Returns:
-            Sorted (descending) list of (confidence, label).
+            Sorted (descending) list of (confidence, label)
         """
         if not converted:
             value = self.convert_value(value)
-        dists = value - self._values
-        dists = np.sum(dists * dists, 1)
-        dists_labels = zip(dists, self._labels)
-        dists_labels.sort()
-        out = {}
-        for dist, label in dists_labels[:self._k]:
-            try:
-                out[label] += 1
-            except KeyError:
-                out[label] = 1
-        out = [x[::-1] for x in out.items()]
-        out.sort(reverse=True)
-        return out
-
+        conf = svmlight.classify(self._m, [(0, value)])[0]
+        print(conf)
+        return [(math.fabs(conf), cmp(conf, 0))]
 
 def main():
     print(__doc__)
