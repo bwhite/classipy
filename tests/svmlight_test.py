@@ -32,8 +32,8 @@ class Test(unittest.TestCase):
         train_values = [[0.], [1.], [2.], [3.], [4.]]
         #train_values = map(np.array, train_values)
         # Test
-        c = classipy.SVMLight()
         train_label_values = zip(train_labels, train_values)
+        c = classipy.SVMLight()
         c.train(train_label_values)
         self.assertEqual(c.predict([2.])[0][1], 1)
         self.assertEqual(c.predict([4.])[0][1], 1)

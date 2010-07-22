@@ -75,7 +75,6 @@ class SVMLight(BinaryClassifier):
         if not converted:
             value = self.convert_value(value)
         conf = svmlight.classify(self._m, [(0, value)])[0]
-        print(conf)
         return [(math.fabs(conf), cmp(conf, 0))]
 
 def main():
