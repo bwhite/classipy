@@ -37,7 +37,6 @@ class SVM(BinaryClassifier):
         except AttributeError:
             self._param = ''
         self._param += ' -q'  # Makes silent
-        self.to_type = list
         
     def train(self, label_values, converted=False):
         """Build a model.
@@ -75,6 +74,19 @@ class SVM(BinaryClassifier):
             value = self.convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
         return [(math.fabs(confidence[0][0]), labels[0])]
+
+    @classmethod
+    def convert_value(cls, value, *args, **kw):
+        """Converts value to an efficient representation.
+
+        Args:
+            value: A value in a valid input type.
+
+        Returns:
+            Value in an efficient representation.
+        """
+        return super(SVM, cls).convert_value(value, to_type=list, *args, **kw)
+
 
 def main():
     print(__doc__)

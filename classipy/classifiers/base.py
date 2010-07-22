@@ -31,20 +31,18 @@ class BinaryClassifier(object):
             options: A dictionary of options specific to the classifier.
         """
         super(BinaryClassifier, self).__init__()
-        self.to_type = list  #  Either numpy.ndarray, tuple, or list.
     
-    def convert_value(self, value, to_type=None):
+    @classmethod
+    def convert_value(cls, value, to_type=np.ndarray):
         """Converts value to to_type.
 
         Args:
             value: A value in a valid to_type.
-            to_type: Overrides self.to_type (default None)
+            to_type: Type to convert to.
 
         Returns:
             Value in the type specified by to_type.
         """
-        if to_type == None:
-            to_type = self.to_type
         if isinstance(value, to_type):  # Same type, quit early
             return value
         if to_type == np.ndarray: # If it needs to be numpy
@@ -56,15 +54,15 @@ class BinaryClassifier(object):
         if to_type == list:
             return list(value)
 
-    def convert_label_values(self, label_values, to_type=None):
+    @classmethod
+    def convert_label_values(cls, label_values, *args, **kw):
         """Converts an iterable of values to a list of to_type.
 
         Args:
 	    label_values: Iterable of tuples of label and list-like objects.
                 Example: [(label, value), ...]
-            to_type: Overrides self.to_type (default None)
 
         Returns:
             An iterable of label_values in the type specified by to_type.
         """
-        return ((label, self.convert_value(value, to_type)) for label, value in label_values)
+        return ((label, cls.convert_value(value, *args, **kw)) for label, value in label_values)

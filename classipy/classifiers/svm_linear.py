@@ -42,7 +42,6 @@ class SVMLinear(BinaryClassifier):
         except (AttributeError, TypeError):
             self._param = ''
         self._param += ' -q'  # Makes silent
-        self.to_type = list
         
     def train(self, label_values, converted=False):
         """Build a model.
@@ -61,7 +60,6 @@ class SVMLinear(BinaryClassifier):
         prob  = liblinear.linear.problem(labels, values, pregen=True)
         param = liblinear.linear.parameter(self._param)
         self._m = liblinear.linearutil.train(prob, param)
-        print('Bias %s' % (str(self._m.bias)))
         return self
 
     def predict(self, value, converted=False):
@@ -80,18 +78,17 @@ class SVMLinear(BinaryClassifier):
         labels, stats, confidence = liblinear.linearutil.predict([-1], [value], self._m, options=self._predict_param)
         return [(math.fabs(confidence[0][0]), labels[0])]
 
-    def convert_value(self, value, *args, **kw):
+    @classmethod
+    def convert_value(cls, value):
         """Converts value to an efficient representation.
 
         Args:
-            value: A value in a valid to_type.
+            value: A value in a valid input type.
 
         Returns:
             Value in an efficient representation.
         """
-        if isinstance(value[0], liblinear.linear.feature_node):
-            return value
-        value = super(SVMLinear, self).convert_value(value, *args, **kw)
+        value = super(SVMLinear, cls).convert_value(value, to_type=list)
         return liblinear.linear.gen_feature_nodearray(value, issparse=False)[0]
 
 

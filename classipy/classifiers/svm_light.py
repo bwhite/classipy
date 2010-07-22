@@ -23,14 +23,18 @@ __license__ = 'GPL V3'
 import math
 import numpy as np
 
-import svmlight
+try:
+    import svmlight
+except ImportError, e:
+    print('Error: pysvmlight is not installed.  A copy is available in classipy/thirdparty')
+    raise e
+    
 from base import BinaryClassifier
 
 
 class SVMLight(BinaryClassifier):
     def __init__(self, options=None):
         super(SVMLight, self).__init__()
-        self.to_type = list
 
     def train(self, label_values, converted=False):
         """Build a model.
@@ -49,16 +53,17 @@ class SVMLight(BinaryClassifier):
                                  verbosity=1)
         return self
 
-    def convert_value(self, value, *args, **kw):
+    @classmethod
+    def convert_value(cls, value, *args, **kw):
         """Converts value to an efficient representation.
 
         Args:
-            value: A value in a valid to_type.
+            value: A value in a valid input type.
 
         Returns:
             Value in an efficient representation.
         """
-        value = super(SVMLight, self).convert_value(value, *args, **kw)
+        value = super(SVMLight, cls).convert_value(value, to_type=list, *args, **kw)
         return [(ind + 1, val) for ind, val in enumerate(value)]
 
     def predict(self, value, converted=False):

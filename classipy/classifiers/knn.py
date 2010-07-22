@@ -31,7 +31,6 @@ class KNN(BinaryClassifier):
             self._k = options['k']
         except (KeyError, TypeError):
             self._k = 1
-        self.to_type = np.ndarray
 
     def train(self, label_values, converted=False):
         """Stores the training data internally.
