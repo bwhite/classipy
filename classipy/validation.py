@@ -26,7 +26,7 @@ import random
 import numpy as np
 
 
-def cross_validation(classifier_class, label_values, num_folds=10, options=None):
+def cross_validation(classifier_class, label_values, num_folds=10, options=None, converted=False):
     """Performs cross validation on a BinaryClassifier.
 
     The same partitions will be produced if random.seed is used before this is
@@ -51,8 +51,8 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None)
     for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
         c = classifier_class(options=options)
-        c.train(train_labels_values)
-        out = evaluate(c, folds[test_num])
+        c.train(train_labels_values, converted=converted)
+        out = evaluate(c, folds[test_num], converted=converted)
         print(out)
         accuracy_sum += out['accuracy']
     return accuracy_sum / num_folds
@@ -136,7 +136,7 @@ def _gen_confusion(test_results):
     return confusion
 
 
-def evaluate(classifier, label_values, class_selector=None):
+def evaluate(classifier, label_values, class_selector=None, converted=False):
     """Classifies the provided values and generates stats based on  the labels.
 
     Args:
@@ -152,7 +152,7 @@ def evaluate(classifier, label_values, class_selector=None):
     """
     if class_selector == None:
         class_selector = lambda x: x[0][1]
-    test_results = [(label, class_selector(classifier.predict(value)))
+    test_results = [(label, class_selector(classifier.predict(value, converted=converted)))
                     for label, value in label_values]
     confusion = _gen_confusion(test_results)
     return _confusion_stats(confusion)
