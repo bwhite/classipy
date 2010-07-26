@@ -49,7 +49,9 @@ class SVMLight(BinaryClassifier):
         """
         if not converted:
             label_values = self.convert_label_values(label_values)
-        self._m = svmlight.learn(list(label_values), type='classification',
+        if not isinstance(label_values, list):
+            label_values = list(label_values)
+        self._m = svmlight.learn(label_values, type='classification',
                                  verbosity=1)
         return self
 
