@@ -75,7 +75,8 @@ class KNN(BinaryClassifier):
                 out[label] = 1
         out = [x[::-1] for x in out.items()]
         out.sort(reverse=True)
-        return out
+        inv_k = 1. / self._k
+        return [(x * inv_k, y) for x, y in out]
 
 
 def main():
