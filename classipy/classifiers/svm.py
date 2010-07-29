@@ -32,6 +32,10 @@ from base import BinaryClassifier
 class SVM(BinaryClassifier):
     def __init__(self, options=None):
         super(SVM, self).__init__()
+        if not options:
+            options = {}
+        if 't' not in options:
+            options['t'] = '0'
         try:
             self._param = ' '.join(['-%s %s' % x for x in options.items()])
         except AttributeError:

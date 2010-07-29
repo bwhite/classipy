@@ -62,6 +62,8 @@ def lda(data_matrix0, data_matrix1, prior0=.5):
     sw = prior0 * np.cov(data_matrix0.T) + prior1 * np.cov(data_matrix1.T)
     sw = np.asmatrix(sw)
     v = np.asarray(sw.I * (mu1 - mu0).T)
+    if np.isnan(v).all():
+        return -np.ones(v.shape)
     return np.nan_to_num(v / np.linalg.norm(v))
 
 
@@ -94,7 +96,7 @@ class LDA(BinaryClassifier):
         data_dict[1] = np.array(data_dict[1])
         # Use PCA to project to Points x min(Points - 2, Dims)
         self._proj_pca, self._mean_pca = pca(np.concatenate((data_dict[-1], data_dict[1])))
-        dims = len(data_dict[-1]) + len(data_dict[1]) - 2
+        dims = max(1, len(data_dict[-1]) + len(data_dict[1]) - 2)
         self._proj_pca = self._proj_pca[:dims]
         data_dict[-1] = np.dot(data_dict[-1] - self._mean_pca, self._proj_pca.T)
         data_dict[1] = np.dot(data_dict[1] - self._mean_pca, self._proj_pca.T)
