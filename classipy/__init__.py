@@ -5,4 +5,3 @@ from classifiers.svm_linear import SVMLinear
 from classifiers.svm_light import SVMLight
 from classifiers.knn import KNN
 from classifiers.lda import LDA
-from classifiers.fake import Fake
