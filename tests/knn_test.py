@@ -33,19 +33,20 @@ class Test(unittest.TestCase):
         train_values = map(np.array, train_values)
         test_value = np.array([2.])
         # Test - K=1
-        test_output = [(1, 1)]
+        test_output = [(1., 1)]
         c = classipy.KNN()
         train_label_values = zip(train_labels, train_values)
         c.train(train_label_values)
         self.assertEqual(c.predict(test_value), test_output)
         # Test - K=3
-        test_output = [(3, 1)]
+        test_output = [(1., 1)]
         c = classipy.KNN(options={'k': 3})
         train_label_values = zip(train_labels, train_values)
         c.train(train_label_values)
         self.assertEqual(c.predict(test_value), test_output)
         # Test - K=5
-        test_output = [(3, 1), (2, 0)]
+        inv_k = 1. / 5
+        test_output = [(3. * inv_k, 1), (2. * inv_k, 0)]
         c = classipy.KNN(options={'k': 5})
         train_label_values = zip(train_labels, train_values)
         c.train(train_label_values)

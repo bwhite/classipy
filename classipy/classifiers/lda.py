@@ -23,7 +23,7 @@ __license__ = 'GPL V3'
 
 import itertools
 import numpy as np
-from classipy import KNN
+from base import BinaryClassifier
 
 def pca(data_matrix):
     """Computes the Principle Component Analysis on a data_matrix.
@@ -61,13 +61,13 @@ def lda(data_matrix0, data_matrix1, prior0=.5):
     mu1 = np.mean(data_matrix1, 0)
     sw = prior0 * np.cov(data_matrix0.T) + prior1 * np.cov(data_matrix1.T)
     sw = np.asmatrix(sw)
-    v = np.asarray(sw.I * (mu0 - mu1).T)
+    v = np.asarray(sw.I * (mu1 - mu0).T)
     return np.nan_to_num(v / np.linalg.norm(v))
 
 
-class LDAKNN(KNN):
+class LDA(BinaryClassifier):
     def __init__(self, options=None):
-        super(LDAKNN, self).__init__(options=options)
+        super(LDA, self).__init__(options=options)
         try:
             self._prior0 = options['prior0']
         except (KeyError, TypeError):
@@ -101,13 +101,7 @@ class LDAKNN(KNN):
         # Use LDA to project to Points x 1
         self._proj_lda = lda(data_dict[-1], data_dict[1], prior0=self._prior0)
         self._proj = np.dot(self._proj_lda.T, self._proj_pca)
-        data_dict[-1] = np.dot(data_dict[-1], self._proj_lda)
-        data_dict[1] = np.dot(data_dict[1], self._proj_lda)
-        label_values = itertools.chain(((-1, x) for x in data_dict[-1]),
-                                       ((1, x) for x in data_dict[1]))
-        label_values = list(label_values)
-        self._label_values = label_values
-        return super(LDAKNN, self).train(label_values)
+        return self
 
     def predict(self, value, converted=False):
         """Evaluates a single value against the training data.
@@ -123,7 +117,7 @@ class LDAKNN(KNN):
         if not converted:
             value = self.convert_value(value)
         value = np.dot(value - self._mean_pca, self._proj.T)
-        return super(LDAKNN, self).predict(value)
+        return [(np.abs(value), cmp(value, 0))]
 
     @classmethod
     def convert_value(cls, value):
@@ -135,7 +129,7 @@ class LDAKNN(KNN):
         Returns:
             Value in an efficient representation.
         """
-        return super(LDAKNN, cls).convert_value(value, to_type=np.ndarray)
+        return super(LDA, cls).convert_value(value, to_type=np.ndarray)
 
 def main():
     print(__doc__)
