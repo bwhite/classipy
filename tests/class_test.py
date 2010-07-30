@@ -42,10 +42,16 @@ class Test(unittest.TestCase):
         c = classifier().train(train_label_values)
         train_time = time.time() - st
         st = time.time()
-        for x in test_values0:
-            self.assertEqual(c.predict(x)[0][1], -1)
-        for x in test_values1:
-            self.assertEqual(c.predict(x)[0][1], 1)
+        def test_pred(test_values, expected):
+            for x in test_values:
+                out = c.predict(x)
+                self.assertTrue(isinstance(out, list))
+                self.assertTrue(isinstance(out[0], tuple))
+                self.assertTrue(isinstance(out[0][0], float))
+                self.assertTrue(isinstance(out[0][1], int))
+                self.assertEqual(out[0][1], expected)
+        test_pred(test_values0, -1)
+        test_pred(test_values1, 1)
         predict_time = time.time() - st
         print('Lin - Train:[%d] Test:[%d] Dim:[%d] - Train:[%f] Pred:[%f] - [%s]' % (sam * 2, sam * 2, dim, train_time, predict_time, classifier_name))
 

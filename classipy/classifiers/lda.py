@@ -38,10 +38,12 @@ def pca(data_matrix):
     """
     data_matrix = np.array(data_matrix)
     mean = np.mean(data_matrix, 0)
+    if data_matrix.shape[0] > data_matrix.shape[1]:
+        return np.eye(data_matrix.shape[1]), mean
     data_matrix -= mean
     V = np.linalg.svd(data_matrix)[2]
     num_data = data_matrix.shape[0]
-    return V[:num_data], mean
+    return V[:num_data - 2], mean
 
 def lda(data_matrix0, data_matrix1, prior0=.5):
     """Computes Fisher's LDA on 2 data matrices.
@@ -65,7 +67,6 @@ def lda(data_matrix0, data_matrix1, prior0=.5):
     if np.isnan(v).all():
         return -np.ones(v.shape)
     return np.nan_to_num(v / np.linalg.norm(v))
-
 
 class LDA(BinaryClassifier):
     def __init__(self, options=None):
@@ -96,8 +97,6 @@ class LDA(BinaryClassifier):
         data_dict[1] = np.array(data_dict[1])
         # Use PCA to project to Points x min(Points - 2, Dims)
         self._proj_pca, self._mean_pca = pca(np.concatenate((data_dict[-1], data_dict[1])))
-        dims = max(1, len(data_dict[-1]) + len(data_dict[1]) - 2)
-        self._proj_pca = self._proj_pca[:dims]
         data_dict[-1] = np.dot(data_dict[-1] - self._mean_pca, self._proj_pca.T)
         data_dict[1] = np.dot(data_dict[1] - self._mean_pca, self._proj_pca.T)
         # Use LDA to project to Points x 1
@@ -118,8 +117,8 @@ class LDA(BinaryClassifier):
         """
         if not converted:
             value = self.convert_value(value)
-        value = np.dot(value - self._mean_pca, self._proj.T)
-        return [(np.abs(value), cmp(value, 0))]
+        value = float(np.dot(value - self._mean_pca, self._proj.T))
+        return [(float(np.abs(value)), cmp(value, 0))]
 
     @classmethod
     def convert_value(cls, value):

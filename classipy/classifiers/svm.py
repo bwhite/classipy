@@ -77,7 +77,7 @@ class SVM(BinaryClassifier):
         if not converted:
             value = self.convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
-        return [(math.fabs(confidence[0][0]), labels[0])]
+        return [(math.fabs(confidence[0][0]), int(labels[0]))]
 
     @classmethod
     def convert_value(cls, value, *args, **kw):
