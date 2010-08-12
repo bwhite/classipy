@@ -26,41 +26,44 @@ import numpy as np
 import classipy
 
 class Test(unittest.TestCase):
-    def linsep(self, classifier_name, classifier, sam, dim):
-        sam_mean = [100.] * dim
-        def sample0():
-            return np.abs(np.random.multivariate_normal(sam_mean, np.eye(dim)))
-        def sample1():
-            return -sample0()
-        test_values0 = [sample0() for x in range(sam)]
-        test_values1 = [sample1() for x in range(sam)]
-        train_labels = [-1] * sam + [1] * sam
-        train_values = [sample0() for x in range(sam)]
-        train_values += [sample1() for x in range(sam)]
+    def evaluate_classifiers(self, classifier_name, classifier, neg_sam_train, pos_sam_train, neg_sam_test, pos_sam_test, test_name, sample0, sample1, no_fail=False):
+        test_values0 = [sample0() for x in range(neg_sam_test)]
+        test_values1 = [sample1() for x in range(pos_sam_test)]
+        dim = len(test_values0[0])
+        train_labels = [-1] * neg_sam_train + [1] * pos_sam_train
+        train_values = [sample0() for x in range(neg_sam_train)]
+        train_values += [sample1() for x in range(pos_sam_train)]
         train_label_values = zip(train_labels, train_values)
         st = time.time()
         c = classifier().train(train_label_values)
         train_time = time.time() - st
         st = time.time()
         def test_pred(test_values, expected):
+            errors = 0
             for x in test_values:
                 out = c.predict(x)
                 self.assertTrue(isinstance(out, list))
                 self.assertTrue(isinstance(out[0], tuple))
                 self.assertTrue(isinstance(out[0][0], float))
                 self.assertTrue(isinstance(out[0][1], int))
-                self.assertEqual(out[0][1], expected)
-        test_pred(test_values0, -1)
-        test_pred(test_values1, 1)
+                try:
+                    self.assertEqual(out[0][1], expected)
+                except AssertionError, e:
+                    if no_fail:
+                        errors += 1
+                    else:
+                        raise e
+            return errors
+        errors = test_pred(test_values0, -1)
+        errors += test_pred(test_values1, 1)
         predict_time = time.time() - st
-        print('Lin - Train:[%d] Test:[%d] Dim:[%d] - Train:[%f] Pred:[%f] - [%s]' % (sam * 2, sam * 2, dim, train_time, predict_time, classifier_name))
+        print('%s - Train:[%d, %d] Test:[%d, %d] Dim:[%d] - Train:[%f] Pred:[%f] Accuracy:[%f]- [%s]' % (test_name, neg_sam_train, pos_sam_train,
+                                                                                                         neg_sam_test, pos_sam_test, dim, train_time,
+                                                                                                         predict_time,
+                                                                                                         1 - errors / float(pos_sam_test + neg_sam_test),
+                                                                                                         classifier_name))
 
     def test_linsep2d(self):
-        def sample2():
-            return np.random.multivariate_normal([1., 1.], [[1, 0], [0, 1.]])
-        def sample3():
-            return -sample2()
-        # Data
         def classifiers():
             for x in dir(classipy):
                 classifier = getattr(classipy, x)
@@ -70,9 +73,56 @@ class Test(unittest.TestCase):
                             yield x, classifier
                 except TypeError:
                     pass
-        for sam, dim in [(2, 2), (10, 2), (100, 10), (100, 100)]:
+        for sam, dim in [(2, 2), (10, 2), (100, 10), (100, 100), (2, 100)]:
+            sam_mean = [100.] * dim
+            def sample0():
+                return np.abs(np.random.multivariate_normal(sam_mean, np.eye(dim)))
+            def sample1():
+                return -sample0()
             for classifier_name, classifier in classifiers():
-                self.linsep(classifier_name, classifier, sam, dim)
+                self.evaluate_classifiers(classifier_name, classifier, sam, sam, sam, sam, 'lin', sample0, sample1)
+
+    def test_perfect(self):
+        def classifiers():
+            for x in dir(classipy):
+                classifier = getattr(classipy, x)
+                try:
+                    if issubclass(classifier, classipy.BinaryClassifier):
+                        if classifier != classipy.BinaryClassifier:
+                            yield x, classifier
+                except TypeError:
+                    pass
+        def sample0():
+            # Perfect dimension plus a tiny bit of noise
+            return np.array([-1.]) + np.random.random() / 10000.
+        def sample1():
+            return -sample0()
+        for classifier_name, classifier in classifiers():
+            self.evaluate_classifiers(classifier_name, classifier, 100, 100, 100, 100, 'per', sample0, sample1)
+
+    def test_perfect_with_random(self):
+        def classifiers():
+            for x in dir(classipy):
+                classifier = getattr(classipy, x)
+                try:
+                    if issubclass(classifier, classipy.BinaryClassifier):
+                        if classifier != classipy.BinaryClassifier:
+                            yield x, classifier
+                except TypeError:
+                    pass
+        for dim in [0, 1, 10, 100, 1000]:
+            def sample0():
+                out = np.random.random(dim + 1)
+                out[0] = -1. + (np.random.random() - .5) / 10000
+                return out
+            def sample1():
+                out = np.random.random(dim + 1)
+                out[0] = 1. + (np.random.random() - .5) / 10000
+                return out
+            for classifier_name, classifier in classifiers():
+                self.evaluate_classifiers(classifier_name, classifier, 1000, 1, 1000, 1000, 'per+rnd', sample0, sample1, no_fail=True)
+
+
 
 if __name__ == '__main__':
     unittest.main()
