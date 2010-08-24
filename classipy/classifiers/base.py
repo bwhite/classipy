@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""K-Nearest Neighbor Classifier
+"""Base BinaryClassifier
 """
 
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
