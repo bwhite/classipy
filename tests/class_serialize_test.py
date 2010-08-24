@@ -24,6 +24,7 @@ import time
 import numpy as np
 
 import classipy
+import zlib
 
 EXCEPTIONS = ['SVMLight', 'SVMLinear']
 
@@ -39,7 +40,8 @@ class Test(unittest.TestCase):
                 except TypeError:
                     pass
         dim = 10
-        N = 100
+        n_tr = 200
+        n_te = 1000
         sam_mean = [100] * dim
         def sample0():
             return np.abs(np.random.multivariate_normal(sam_mean, np.eye(dim)))
@@ -47,15 +49,16 @@ class Test(unittest.TestCase):
             return -sample0()
         for classifier_name, classifier in classifiers():
             if classifier_name in EXCEPTIONS:
+                print('Skipping [%s]' % classifier_name)
                 continue
             print(classifier_name)
             # We use the same sampler for both classes (better test)
-            test_label_values = [(-1, sample0()) for x in range(N)]
-            test_label_values += [(1, sample0()) for x in range(N)]
-            train_label_values = [(-1, sample0()) for x in range(N)]
-            train_label_values += [(1, sample0()) for x in range(N)]
-            train_label_values2 = [(-1, sample1()) for x in range(N)]
-            train_label_values2 += [(1, sample1()) for x in range(N)]
+            test_label_values = [(-1, sample0()) for x in range(n_te)]
+            test_label_values += [(1, sample0()) for x in range(n_te)]
+            train_label_values = [(-1, sample0()) for x in range(n_tr)]
+            train_label_values += [(1, sample0()) for x in range(n_tr)]
+            train_label_values2 = [(-1, sample1()) for x in range(n_tr)]
+            train_label_values2 += [(1, sample1()) for x in range(n_tr)]
             c = classifier().train(train_label_values)
             c_same = classifier().train(train_label_values)
             c2 = classifier().train(train_label_values2)
@@ -64,9 +67,10 @@ class Test(unittest.TestCase):
             self.assertEquals(c.dumps(), c_same.dumps())
             self.assertEquals(classifier.loads(c.dumps()).dumps(), c.dumps())
             self.assertTrue(isinstance(c.dumps(), str))
+            print('Length Uncomp[%d] ZlibComp[%d]' % (len(c.dumps()), len(zlib.compress(c.dumps()))))
             c_dumped = classifier.loads(c.dumps())
             for label, value in test_label_values:
-                self.assertEquals(c.predict(value)[0][1], c_dumped.predict(value)[0][1])
+                self.assertEquals(c.predict(value), c_dumped.predict(value))
             
 
 if __name__ == '__main__':

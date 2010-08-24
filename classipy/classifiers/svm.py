@@ -108,7 +108,6 @@ class SVM(BinaryClassifier):
             ser_model = fp.read()
         out = pickle.dumps((self, ser_model))
         self._m = m
-        print(m)
         return out
     
     @classmethod
