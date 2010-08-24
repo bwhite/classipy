@@ -64,8 +64,9 @@ def lda(data_matrix0, data_matrix1, prior0=.5):
     sw = prior0 * np.cov(data_matrix0.T) + prior1 * np.cov(data_matrix1.T)
     sw = np.asmatrix(sw)
     v = np.asarray(sw.I * (mu1 - mu0).T)
+    # NOTE: This can happen when we are unable to compute variance (few pts)
     if np.isnan(v).all():
-        return -np.ones(v.shape)
+        return np.ones(v.shape)
     return np.nan_to_num(v / np.linalg.norm(v))
 
 class LDA(BinaryClassifier):
