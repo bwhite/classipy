@@ -110,17 +110,17 @@ class Test(unittest.TestCase):
                             yield x, classifier
                 except TypeError:
                     pass
-        for dim in [0, 1, 10, 100, 1000]:
-            def sample0():
-                out = np.random.random(dim + 1)
-                out[0] = -1. + (np.random.random() - .5) / 10000
-                return out
-            def sample1():
-                out = np.random.random(dim + 1)
-                out[0] = 1. + (np.random.random() - .5) / 10000
-                return out
-            for classifier_name, classifier in classifiers():
-                self.evaluate_classifiers(classifier_name, classifier, 1000, 1, 1000, 1000, 'per+rnd', sample0, sample1, no_fail=True)
+        for classifier_name, classifier in classifiers():
+            for dim in range(10, 20):
+                def sample0():
+                    out = np.random.random(dim + 1)
+                    out[0] = -1. + (np.random.random() - .5) / 10000
+                    return out
+                def sample1():
+                    out = np.random.random(dim + 1)
+                    out[0] = 1. + (np.random.random() - .5) / 10000
+                    return out
+                self.evaluate_classifiers(classifier_name, classifier, 100, 100, 100, 100, 'per+rnd', sample0, sample1, no_fail=True)
 
 
 
