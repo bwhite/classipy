@@ -21,6 +21,7 @@ __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
 import numpy as np
+import cPickle as pickle
 
 
 class BinaryClassifier(object):
@@ -66,3 +67,23 @@ class BinaryClassifier(object):
             An iterable of label_values in the type specified by to_type.
         """
         return ((label, cls.convert_value(value, *args, **kw)) for label, value in label_values)
+
+    def dumps(self):
+        """Serializes the classifier to a string
+
+        Returns:
+            A string that can be passed to the class' loads method
+        """
+        return pickle.dumps(self)
+    
+    @classmethod
+    def loads(cls, s):
+        """Returns a classifier instance given a serialized form
+
+        Args:
+            s: Serialized string
+
+        Returns:
+            An instance of this class as it was before it was serialized
+        """
+        return pickle.loads(s)
