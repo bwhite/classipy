@@ -3,6 +3,7 @@
 from ctypes import *
 from ctypes.util import find_library
 import sys
+import os
 
 import numpy as np
 
@@ -11,7 +12,7 @@ from . import __path__
 # For unix the prefix 'lib' is not considered.
 # Load library
 try:
-    liblinear = np.ctypeslib.load_library('liblinear', __path__[0])
+    liblinear = np.ctypeslib.load_library('liblinear', os.path.abspath(__path__[0] + '../../../lib'))
 except OSError:
     liblinear = np.ctypeslib.load_library('liblinear', '.')
 
