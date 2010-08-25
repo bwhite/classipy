@@ -74,7 +74,7 @@ class BinaryClassifier(object):
         Returns:
             A string that can be passed to the class' loads method
         """
-        return pickle.dumps(self)
+        return pickle.dumps(self, -1)
     
     @classmethod
     def loads(cls, s):

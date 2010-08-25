@@ -106,7 +106,7 @@ class SVM(BinaryClassifier):
             libsvm.svmutil.svm_save_model(fp.name, m)
             fp.seek(0)
             ser_model = fp.read()
-        out = pickle.dumps((self, ser_model))
+        out = pickle.dumps((self, ser_model), -1)
         self._m = m
         return out
     

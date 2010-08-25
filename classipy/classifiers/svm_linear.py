@@ -22,6 +22,8 @@ __license__ = 'GPL V3'
 
 import math
 import numpy as np
+import tempfile
+import cPickle as pickle
 
 import liblinear.linear
 import liblinear.linearutil
@@ -42,6 +44,7 @@ class SVMLinear(BinaryClassifier):
         except (AttributeError, TypeError):
             self._param = ''
         self._param += ' -q'  # Makes silent
+        self._m = None
         
     def train(self, label_values, converted=False):
         """Build a model.
@@ -90,6 +93,40 @@ class SVMLinear(BinaryClassifier):
         """
         value = super(SVMLinear, cls).convert_value(value, to_type=list)
         return liblinear.linear.gen_feature_nodearray(value, issparse=False)[0]
+
+    def dumps(self):
+        """Serializes the classifier to a string
+
+        Returns:
+            A string that can be passed to the class' loads method
+        """
+        m = self._m
+        self._m = None
+        with tempfile.NamedTemporaryFile() as fp:
+            liblinear.linearutil.save_model(fp.name, m)
+            fp.seek(0)
+            ser_model = fp.read()
+        out = pickle.dumps((self, ser_model), -1)
+        self._m = m
+        return out
+    
+    @classmethod
+    def loads(cls, s):
+        """Returns a classifier instance given a serialized form
+
+        Args:
+            s: Serialized string
+
+        Returns:
+            An instance of this class as it was before it was serialized
+        """
+        c, ser_model = pickle.loads(s)
+        with tempfile.NamedTemporaryFile() as fp:
+            fp.write(ser_model)
+            fp.file.flush()
+            m = liblinear.linearutil.load_model(fp.name)
+        c._m = m
+        return c
 
 
 def main():
