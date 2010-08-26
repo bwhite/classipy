@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 from . import __path__
-print(os.path.abspath(__path__[0] + '../../lib'))
+
 # Load library
 try:
     libsvm = np.ctypeslib.load_library('libsvm', os.path.abspath(__path__[0] + '../../../lib'))

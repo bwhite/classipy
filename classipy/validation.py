@@ -53,12 +53,11 @@ def cross_validation(classifier_class, label_values, num_folds=10, options=None,
         c = classifier_class(options=options)
         c.train(train_labels_values, converted=converted)
         out = evaluate(c, folds[test_num], converted=converted)
-        print(out)
         accuracy_sum += out['accuracy']
     return accuracy_sum / num_folds
 
 
-def _confusion_stats(confusion):
+def confusion_stats(confusion):
     """Generates statistics given a square confusion matrix.
 
     Args:
@@ -116,7 +115,7 @@ def _confusion_stats(confusion):
             'tp': tps, 'fp': fps, 'fn': fns, 'total_true': total_true,
             'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1}
 
-def _gen_confusion(test_results):
+def gen_confusion(test_results):
     """Generates a confusion matrix based on classifier test results.
 
     Args:
@@ -154,8 +153,8 @@ def evaluate(classifier, label_values, class_selector=None, converted=False):
         class_selector = lambda x: x[0][1]
     test_results = [(label, class_selector(classifier.predict(value, converted=converted)))
                     for label, value in label_values]
-    confusion = _gen_confusion(test_results)
-    return _confusion_stats(confusion)
+    confusion = gen_confusion(test_results)
+    return confusion_stats(confusion)
 
 
 def confidence_stats(classifier, label_values, samples=None):
@@ -188,8 +187,8 @@ def confidence_stats(classifier, label_values, samples=None):
     for conf_thresh in confs:
         mkclass = lambda x: -1 if x < conf_thresh else 1
         test_results = ((x[0], mkclass(x[1])) for x in test_confidences)
-        confusion = _gen_confusion(test_results)
-        thresh_stats[conf_thresh] = _confusion_stats(confusion)
+        confusion = gen_confusion(test_results)
+        thresh_stats[conf_thresh] = confusion_stats(confusion)
     return thresh_stats
 
 
