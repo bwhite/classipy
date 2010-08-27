@@ -29,7 +29,7 @@ class Test(unittest.TestCase):
     def test_confusion0(self):
         test_in = {0: {0: 1, 1: 0},
                    1: {0: 1, 1: 0}}
-        out  = classipy.validation._confusion_stats(test_in)
+        out  = classipy.validation.confusion_stats(test_in)
         #print(out)
         self.assertEqual(out['precision'][0], .5)
         # Should not equal self as it is a NaN
@@ -37,7 +37,7 @@ class Test(unittest.TestCase):
         self.assertEqual(out['recall'], {0: 1., 1: 0.})
         test_in = {0: {0: 10, 1: 5},
                    1: {0: 0, 1: 5}}
-        out  = classipy.validation._confusion_stats(test_in)
+        out  = classipy.validation.confusion_stats(test_in)
         self.assertEqual(out['precision'], {0: 1., 1: 0.5})
         self.assertEqual(out['recall'], {0: 10/15., 1: 1.})
 
@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
         test_in = {0: {0: 25, 1: 5, 2: 2},
                    1: {0: 3, 1: 32, 2: 4},
                    2: {0: 1, 1: 0, 2: 15}}
-        out  = classipy.validation._confusion_stats(test_in)
+        out  = classipy.validation.confusion_stats(test_in)
         #print(out)
         self.assertEqual(out['precision'][0], 25. / (25 + 3 + 1))
         self.assertEqual(out['recall'][0],  25. / (25 + 5 + 2))
@@ -55,7 +55,7 @@ class Test(unittest.TestCase):
     def test_confusion2(self):
         test_in = {0: {0: 10, 1: 5},
                    1: {0: 0, 1: 20}}
-        out  = classipy.validation._confusion_stats(test_in)
+        out  = classipy.validation.confusion_stats(test_in)
         self.assertEqual(out['accuracy'], 30/35.)
         self.assertEqual(out['precision'], {0: 1., 1: 20 / 25.})
         self.assertEqual(out['recall'], {0: 10/15., 1: 1.})
