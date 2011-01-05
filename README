@@ -1,5 +1,4 @@
-Classification Server
-A simple HTTP server that provides an interface to a number of classifiers.  Since communication is performed over HTTP, practically every implementation language can take advantage of it.
+Classipy - Simple Python Classifier Library
 
 Initial Focus
 - Binary classifiers
@@ -7,8 +6,6 @@ Initial Focus
 - Scalar confidence values
 
 Goals
-- HTTP interface to a variety of classifiers
-- Client implementations for common languages (C/C++/Python/Matlab)
 - Simplify classifier comparison
 - Provide standard evaluation metrics and visualizations
 - Provide standard operations such as train, test, and cross-validation
