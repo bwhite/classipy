@@ -24,7 +24,9 @@ import numpy as np
 
 from base import BinaryClassifier
 
+
 class KNN(BinaryClassifier):
+
     def __init__(self, options=None):
         super(KNN, self).__init__()
         try:
@@ -36,10 +38,10 @@ class KNN(BinaryClassifier):
         """Stores the training data internally.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects
-            Example: [(label, value), ...]
-            or the result of using convert_label_values if converted=True.
-        converted: If True then the input is in the correct internal format.
+            label_values: Iterable of tuples of label and list-like objects
+                Example: [(label, value), ...]
+                or the result of using convert_label_values if converted=True.
+            converted: If True then the input is in the correct internal format
         Returns:
             self
         """
@@ -56,7 +58,7 @@ class KNN(BinaryClassifier):
         Args:
             value: List-like object with same dimensionality used for training
                 or the result of using convert_value if converted=True.
-            converted: If True then the input is in the correct internal format.
+            converted: If True then the input is in the correct internal format
 
         Returns:
             Sorted (descending) list of (confidence, label).

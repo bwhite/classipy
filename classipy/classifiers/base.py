@@ -25,14 +25,15 @@ import cPickle as pickle
 
 
 class BinaryClassifier(object):
+
     def __init__(self, options=None):
-    	"""Initializes classifier
+        """Initializes classifier
 
         Args:
             options: A dictionary of options specific to the classifier.
         """
         super(BinaryClassifier, self).__init__()
-    
+
     @classmethod
     def convert_value(cls, value, to_type=np.ndarray):
         """Converts value to to_type.
@@ -60,13 +61,14 @@ class BinaryClassifier(object):
         """Converts an iterable of values to a list of to_type.
 
         Args:
-	    label_values: Iterable of tuples of label and list-like objects.
+            label_values: Iterable of tuples of label and list-like objects.
                 Example: [(label, value), ...]
 
         Returns:
             An iterable of label_values in the type specified by to_type.
         """
-        return ((label, cls.convert_value(value, *args, **kw)) for label, value in label_values)
+        return ((label, cls.convert_value(value, *args, **kw))
+                for label, value in label_values)
 
     def dumps(self):
         """Serializes the classifier to a string
@@ -75,7 +77,7 @@ class BinaryClassifier(object):
             A string that can be passed to the class' loads method
         """
         return pickle.dumps(self, -1)
-    
+
     @classmethod
     def loads(cls, s):
         """Returns a classifier instance given a serialized form

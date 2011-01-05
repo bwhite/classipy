@@ -21,18 +21,19 @@ __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
 import math
-import numpy as np
 
 try:
     import svmlight
 except ImportError, e:
-    print('Error: pysvmlight is not installed.  A copy is available in classipy/thirdparty')
+    print('Error: pysvmlight is not installed.  '
+          'A copy is available in classipy/thirdparty')
     raise e
-    
+
 from base import BinaryClassifier
 
 
 class SVMLight(BinaryClassifier):
+
     def __init__(self, options=None):
         super(SVMLight, self).__init__()
 
@@ -40,10 +41,10 @@ class SVMLight(BinaryClassifier):
         """Build a model.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects
-            Example: [(label, value), ...]
-            or the result of using convert_label_values if converted=True.
-        converted: If True then the input is in the correct internal format.
+            label_values: Iterable of tuples of label and list-like objects
+                Example: [(label, value), ...]
+                or the result of using convert_label_values if converted=True.
+            converted: If True then the input is in the correct internal format
         Returns:
             self
         """
@@ -65,7 +66,8 @@ class SVMLight(BinaryClassifier):
         Returns:
             Value in an efficient representation.
         """
-        value = super(SVMLight, cls).convert_value(value, to_type=list, *args, **kw)
+        value = super(SVMLight, cls).convert_value(value, to_type=list,
+                                                   *args, **kw)
         return [(ind + 1, val) for ind, val in enumerate(value)]
 
     def predict(self, value, converted=False):
@@ -74,7 +76,7 @@ class SVMLight(BinaryClassifier):
         Args:
             value: List-like object with same dimensionality used for training
                 or the result of using convert_value if converted=True.
-            converted: If True then the input is in the correct internal format.
+            converted: If True then the input is in the correct internal format
 
         Returns:
             Sorted (descending) list of (confidence, label)
@@ -83,6 +85,7 @@ class SVMLight(BinaryClassifier):
             value = self.convert_value(value)
         conf = svmlight.classify(self._m, [(0, value)])[0]
         return [(math.fabs(conf), cmp(conf, 0))]
+
 
 def main():
     print(__doc__)

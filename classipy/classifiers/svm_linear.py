@@ -21,18 +21,15 @@ __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
 import math
-import numpy as np
 import tempfile
 import cPickle as pickle
-
 import liblinear.linear
 import liblinear.linearutil
-
 from base import BinaryClassifier
-import classipy
 
 
 class SVMLinear(BinaryClassifier):
+
     def __init__(self, options=None):
         super(SVMLinear, self).__init__()
         self._predict_param = ''
@@ -45,22 +42,22 @@ class SVMLinear(BinaryClassifier):
             self._param = ''
         self._param += ' -q'  # Makes silent
         self._m = None
-        
+
     def train(self, label_values, converted=False):
         """Build a model.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects
-            Example: [(label, value), ...]
-            or the result of using convert_label_values if converted=True.
-        converted: If True then the input is in the correct internal format.
+            label_values: Iterable of tuples of label and list-like objects
+                Example: [(label, value), ...]
+                or the result of using convert_label_values if converted=True.
+            converted: If True then the input is in the correct internal format
         Returns:
             self
         """
         if not converted:
             label_values = self.convert_label_values(label_values)
         labels, values = zip(*list(label_values))
-        prob  = liblinear.linear.problem(labels, values, pregen=True)
+        prob = liblinear.linear.problem(labels, values, pregen=True)
         param = liblinear.linear.parameter(self._param)
         self._m = liblinear.linearutil.train(prob, param)
         return self
@@ -71,14 +68,18 @@ class SVMLinear(BinaryClassifier):
         Args:
             value: List-like object with same dimensionality used for training
                 or the result of using convert_value if converted=True.
-            converted: If True then the input is in the correct internal format.
+            converted: If True then the input is in the correct internal format
 
         Returns:
             Sorted (descending) list of (confidence, label)
         """
         if not converted:
             value = self.convert_value(value)
-        labels, stats, confidence = liblinear.linearutil.predict([-1], [value], self._m, options=self._predict_param)
+        opt = self._predict_param
+        labels, stats, confidence = liblinear.linearutil.predict([-1],
+                                                                 [value],
+                                                                 self._m,
+                                                                 options=opt)
         return [(math.fabs(confidence[0][0]), labels[0])]
 
     @classmethod
@@ -109,7 +110,7 @@ class SVMLinear(BinaryClassifier):
         out = pickle.dumps((self, ser_model), -1)
         self._m = m
         return out
-    
+
     @classmethod
     def loads(cls, s):
         """Returns a classifier instance given a serialized form

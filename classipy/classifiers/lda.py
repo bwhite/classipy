@@ -20,10 +20,9 @@
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
-
-import itertools
 import numpy as np
 from base import BinaryClassifier
+
 
 def pca(data_matrix):
     """Computes the Principle Component Analysis on a data_matrix.
@@ -44,6 +43,7 @@ def pca(data_matrix):
     V = np.linalg.svd(data_matrix)[2]
     num_data = data_matrix.shape[0]
     return V[:num_data - 2], mean
+
 
 def lda(data_matrix0, data_matrix1, prior0=.5):
     """Computes Fisher's LDA on 2 data matrices.
@@ -69,7 +69,9 @@ def lda(data_matrix0, data_matrix1, prior0=.5):
         return np.ones(v.shape)
     return np.nan_to_num(v / np.linalg.norm(v))
 
+
 class LDA(BinaryClassifier):
+
     def __init__(self, options=None):
         super(LDA, self).__init__(options=options)
         try:
@@ -81,10 +83,10 @@ class LDA(BinaryClassifier):
         """Stores the training data internally.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects
-            Example: [(label, value), ...]
-            or the result of using convert_label_values if converted=True.
-        converted: If True then the input is in the correct internal format.
+            label_values: Iterable of tuples of label and list-like objects
+                Example: [(label, value), ...]
+                or the result of using convert_label_values if converted=True.
+            converted: If True then the input is in the correct internal format
         Returns:
             self
         """
@@ -97,8 +99,10 @@ class LDA(BinaryClassifier):
         data_dict[-1] = np.array(data_dict[-1])
         data_dict[1] = np.array(data_dict[1])
         # Use PCA to project to Points x min(Points - 2, Dims)
-        self._proj_pca, self._mean_pca = pca(np.concatenate((data_dict[-1], data_dict[1])))
-        data_dict[-1] = np.dot(data_dict[-1] - self._mean_pca, self._proj_pca.T)
+        self._proj_pca, self._mean_pca = pca(np.concatenate((data_dict[-1],
+                                                             data_dict[1])))
+        data_dict[-1] = np.dot(data_dict[-1] - self._mean_pca,
+                               self._proj_pca.T)
         data_dict[1] = np.dot(data_dict[1] - self._mean_pca, self._proj_pca.T)
         # Use LDA to project to Points x 1
         self._proj_lda = lda(data_dict[-1], data_dict[1], prior0=self._prior0)
@@ -111,7 +115,7 @@ class LDA(BinaryClassifier):
         Args:
             value: List-like object with same dimensionality used for training
                 or the result of using convert_value if converted=True.
-            converted: If True then the input is in the correct internal format.
+            converted: If True then the input is in the correct internal format
 
         Returns:
             Sorted (descending) list of (confidence, label).
@@ -132,6 +136,7 @@ class LDA(BinaryClassifier):
             Value in an efficient representation.
         """
         return super(LDA, cls).convert_value(value, to_type=np.ndarray)
+
 
 def main():
     print(__doc__)

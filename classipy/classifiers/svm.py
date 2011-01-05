@@ -21,7 +21,6 @@ __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
 import math
-import numpy as np
 import tempfile
 import cPickle as pickle
 
@@ -32,6 +31,7 @@ from base import BinaryClassifier
 
 
 class SVM(BinaryClassifier):
+
     def __init__(self, options=None):
         super(SVM, self).__init__()
         if not options:
@@ -44,12 +44,12 @@ class SVM(BinaryClassifier):
             self._param = ''
         self._param += ' -q'  # Makes silent
         self._m = None
-        
+
     def train(self, label_values, converted=False):
         """Build a model.
 
         Args:
-	label_values: Iterable of tuples of label and list-like objects
+        label_values: Iterable of tuples of label and list-like objects
             Example: [(label, value), ...]
             or the result of using convert_label_values if converted=True.
         converted: If True then the input is in the correct internal format.
@@ -59,7 +59,7 @@ class SVM(BinaryClassifier):
         if not converted:
             label_values = self.convert_label_values(label_values)
         labels, values = zip(*list(label_values))
-        prob  = libsvm.svm.svm_problem(labels, values)
+        prob = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
         self._m = libsvm.svmutil.svm_train(prob, param)
         return self
@@ -72,14 +72,16 @@ class SVM(BinaryClassifier):
         Args:
             value: List-like object with same dimensionality used for training
                 or the result of using convert_value if converted=True.
-            converted: If True then the input is in the correct internal format.
+            converted: True then the input is in the correct internal format.
 
         Returns:
             Sorted (descending) list of (confidence, label)
         """
         if not converted:
             value = self.convert_value(value)
-        labels, stats, confidence = libsvm.svmutil.svm_predict([-1], [value], self._m)
+        labels, stats, confidence = libsvm.svmutil.svm_predict([-1],
+                                                               [value],
+                                                               self._m)
         return [(math.fabs(confidence[0][0]), int(labels[0]))]
 
     @classmethod
@@ -109,7 +111,7 @@ class SVM(BinaryClassifier):
         out = pickle.dumps((self, ser_model), -1)
         self._m = m
         return out
-    
+
     @classmethod
     def loads(cls, s):
         """Returns a classifier instance given a serialized form
