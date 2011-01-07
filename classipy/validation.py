@@ -22,22 +22,27 @@ __license__ = 'GPL V3'
 
 import itertools
 import random
-
 import numpy as np
+import classipy
 
 
-def cross_validation(classifier_class, label_values, num_folds=10, options=None, converted=False):
+def cross_validation(classifier_class, label_values, num_folds=10,
+                     options=None, converted=False):
     """Performs cross validation on a BinaryClassifier.
 
     The same partitions will be produced if random.seed is used before this is
     called.  Loads all label_values in memory to group them.
+
     Args:
-        classifier_class: A classifier that conforms to the BinaryClassifier spec.
-	label_values: Iterable of tuples of label and list-like objects.
+        classifier_class: A classifier that conforms to BinaryClassifier spec
+        label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         num_folds: Number of partitions to split the data into (default 10).
+        options: Options to pass to the classifier
+        converted: True then the input is in the correct internal format.
+
     Returns:
-        A dictionary of performance statistics.
+        Accuracy
     """
     # Randomly shuffle the data
     label_values = list(label_values)
@@ -64,6 +69,7 @@ def confusion_stats(confusion):
         confusion: A square sparse confusion matrix in the form of a dict of
             dicts such that confusion[true_label][pred_label].  All values are
             expected to be integers, missing values are taken as zeros.
+
     Returns:
         A dictionary of performance statistics (precision, recall, accuracy)
     """
@@ -85,13 +91,14 @@ def confusion_stats(confusion):
         row_sum = sum(confusion[true_label].values())
         # col_sum is num of predicted examples for the cur label
         col_sum = sum([confusion[x][true_label]
-                       for x in confusion if confusion[x].has_key(true_label)])
+                       for x in confusion if true_label in confusion[x]])
         try:
-            tp = confusion[true_label][true_label] # Num True == Predict == cur class
+            # Num True == Predict == cur class
+            tp = confusion[true_label][true_label]
         except KeyError:
             tp = 0
-        fn = row_sum - tp # Num True == cur class and Predict != cur class
-        fp = col_sum - tp # Num True != cur class and Predict == cur class
+        fn = row_sum - tp  # Num True == cur class and Predict != cur class
+        fp = col_sum - tp  # Num True != cur class and Predict == cur class
         total_true[true_label] = row_sum
         total_pred[true_label] = col_sum
         tps[true_label] = tp
@@ -108,18 +115,23 @@ def confusion_stats(confusion):
         except ZeroDivisionError:
             recall[true_label] = float('nan')
         f1[true_label] = 2. * precision[true_label] * recall[true_label]
-        f1[true_label] /= (precision[true_label] + recall[true_label])
+        try:
+            f1[true_label] /= (precision[true_label] + recall[true_label])
+        except ZeroDivisionError:
+            f1[true_label] = float('nan')
         miss_rate[true_label] = 1 - recall[true_label]
     accuracy = overall_correct / float(overall_total)
     return {'accuracy': accuracy, 'precision': precision, 'recall': recall,
             'tp': tps, 'fp': fps, 'fn': fns, 'total_true': total_true,
             'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1}
 
+
 def gen_confusion(test_results):
     """Generates a confusion matrix based on classifier test results.
 
     Args:
         test_results: Iterable of (true, pred) labels.
+
     Returns:
         Confusion matrix in the form conf[true_label][pred_label]
     """
@@ -136,16 +148,18 @@ def gen_confusion(test_results):
 
 
 def evaluate(classifier, label_values, class_selector=None, converted=False):
-    """Classifies the provided values and generates stats based on  the labels.
+    """Classifies the provided values and generates stats based on the labels.
 
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-	label_values: Iterable of tuples of label and list-like objects.
+        label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         class_selector: Function that takes classifier output and returns a
             label. If None (default) then use first class label (highest
             confidence).
+        converted: True then the input is in the correct internal format.
+
     Returns:
         A dictionary of performance statistics.
     """
@@ -161,13 +175,15 @@ def confidence_stats(classifier, label_values, samples=None):
     """Classifies the provided values and generates stats based on  the labels.
 
     Assumes labels are either -1 or 1.
+
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-	label_values: Iterable of tuples of label and list-like objects.
+        label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         samples: If None (default) then use every point.  Else select this many
             uniform samples.
+
     Returns:
         A dictionary where key is threshold and value is performance stats dict
     """
@@ -197,7 +213,7 @@ def multi_evaluate(classifiers, label_values, class_selectors=None):
 
     Args:
         classifiers: A list of classifiers that conforms to the BinaryClassifier spec.
-	label_values: Iterable of tuples of label and list-like objects.
+        label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         class_selectors: List of functions (one per classifier, if less then
             use default) that take classifier output and return label. If None
@@ -220,11 +236,12 @@ def hard_negatives(classifier, label_values, class_selector=None):
     Args:
         classifier: A classifier instance that conforms to the BinaryClassifier
             spec.
-	label_values: Iterable of tuples of label and list-like objects.
+        label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         class_selector: Function that takes classifier output and returns a
             label. If None (default) then use first class label (highest
             confidence).
+
     Returns:
         An iterator of values that correspond to false positives.
     """
@@ -233,3 +250,42 @@ def hard_negatives(classifier, label_values, class_selector=None):
     for label, value in label_values:
         if label != class_selector(classifier.predict(value)):
             yield value
+
+
+def select_parameters(classifier_class, label_values, parameters, optimizer,
+                      options=None, converted=False):
+    """Finds good parameters
+
+    The optimizer must run in bounded time as we return its maximum value
+
+    Args:
+        classifier_class: A classifier that conforms to BinaryClassifier spec
+        label_values: Iterable of tuples of label and list-like objects.
+            Example: [(label, value), ...]
+        parameters: Dict with keys as parameter names and values as
+            (low, high, resolution) where generated parameters are [low, high)
+            and resolution is a hint at the relevant scale of the parameter.
+        optimizer: Function that takes (fitness_func, parameters) and returns
+            an iterator of (fitness, params).  See Pyram Library for examples.
+        options: Options to pass to the classifier unchanged (Default: None)
+        converted: True then the input is in the correct internal format
+
+    Returns:
+        (accuracy, params) where accuracy is the max value with associated params
+    """
+    if not options:
+        options = {}
+    if not converted:
+        label_values = list(classifier_class.convert_label_values(label_values))
+
+    def fitfunc(**kw):
+        cur_options = dict(kw)
+        cur_options.update(options)
+        return cross_validation(classifier_class, label_values, options=cur_options, converted=True)
+    vals = []
+    for x in optimizer(fitfunc, parameters):
+        print(x)
+        vals.append(x)
+    out_accuracy, out_params = max(vals)
+    out_params.update(options)
+    return out_accuracy, out_params
