@@ -120,7 +120,10 @@ def confusion_stats(confusion):
         except ZeroDivisionError:
             f1[true_label] = float('nan')
         miss_rate[true_label] = 1 - recall[true_label]
-    accuracy = overall_correct / float(overall_total)
+    try:
+        accuracy = overall_correct / float(overall_total)
+    except ZeroDivisionError:
+        accuracy = float('nan')
     return {'accuracy': accuracy, 'precision': precision, 'recall': recall,
             'tp': tps, 'fp': fps, 'fn': fns, 'total_true': total_true,
             'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1}
