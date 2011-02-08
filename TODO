@@ -1,3 +1,4 @@
 -Add dimensionality reduction base class
 -Generate ROC and PR curves
 -Generate visual confusion matrices (latex?)
+-Give good warnings if training is done with not enough samples

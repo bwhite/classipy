@@ -23,7 +23,6 @@ __license__ = 'GPL V3'
 import itertools
 import random
 import numpy as np
-import classipy
 
 
 def cross_validation(classifier_class, label_values, num_folds=10,
@@ -38,6 +37,7 @@ def cross_validation(classifier_class, label_values, num_folds=10,
         label_values: Iterable of tuples of label and list-like objects.
             Example: [(label, value), ...]
         num_folds: Number of partitions to split the data into (default 10).
+            If len(label_values) < num_folds, then we use len(label_values)
         options: Options to pass to the classifier
         converted: True then the input is in the correct internal format.
 
@@ -47,6 +47,8 @@ def cross_validation(classifier_class, label_values, num_folds=10,
     # Randomly shuffle the data
     label_values = list(label_values)
     random.shuffle(label_values)
+    if len(label_values) < num_folds:
+        num_folds = len(label_values)
     # Split up folds
     fold_size = int(np.ceil(len(label_values) / float(num_folds)))
     folds = [label_values[x * fold_size:(x + 1) * fold_size]
@@ -253,7 +255,7 @@ def hard_negatives(classifier, label_values, class_selector=None):
 
 
 def select_parameters(classifier_class, label_values, parameters, optimizer,
-                      options=None, converted=False):
+                      options=None, converted=False, num_folds=10):
     """Finds good parameters
 
     The optimizer must run in bounded time as we return its maximum value
@@ -269,6 +271,8 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
             an iterator of (fitness, params).  See Pyram Library for examples.
         options: Options to pass to the classifier unchanged (Default: None)
         converted: True then the input is in the correct internal format
+        num_folds: Number of partitions to split the data into (default 10).
+            If len(label_values) < num_folds, then we use len(label_values)
 
     Returns:
         (accuracy, params) where accuracy is the max value with associated params
@@ -281,10 +285,11 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
     def fitfunc(**kw):
         cur_options = dict(kw)
         cur_options.update(options)
-        return cross_validation(classifier_class, label_values, options=cur_options, converted=True)
+        return cross_validation(classifier_class, label_values,
+                                options=cur_options, converted=True,
+                                num_folds=num_folds)
     vals = []
     for x in optimizer(fitfunc, parameters):
-        print(x)
         vals.append(x)
     out_accuracy, out_params = max(vals)
     out_params.update(options)

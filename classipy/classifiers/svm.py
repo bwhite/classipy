@@ -58,7 +58,10 @@ class SVM(BinaryClassifier):
         """
         if not converted:
             label_values = self.convert_label_values(label_values)
-        labels, values = zip(*list(label_values))
+        try:
+            labels, values = zip(*list(label_values))
+        except ValueError:
+            raise ValueError('label_values is empty')
         prob = libsvm.svm.svm_problem(labels, values)
         param = libsvm.svm.svm_parameter(self._param)
         self._m = libsvm.svmutil.svm_train(prob, param)
