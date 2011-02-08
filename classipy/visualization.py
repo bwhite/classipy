@@ -1,9 +1,9 @@
-import matplotlib
-import matplotlib.pyplot as mp
 import numpy as np
 
 
 def decision_boundary_2d(classifier, labels_values, resx, resy):
+    import matplotlib
+    import matplotlib.pyplot as mp
     mp.scatter(*np.array([x[1] for x in labels_values if x[0] == 1]).T,
                s=2, linewidth=0.)
     mp.scatter(*np.array([x[1] for x in labels_values if x[0] != 1]).T, c='r',
