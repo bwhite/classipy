@@ -37,7 +37,7 @@ except ImportError:
     source_ext = '.c'
     cmdclass = {}
 
-ext_modules = [Extension("_rand_forest", ["rand_forest" + source_ext])]
+ext_modules = [Extension("_rand_forest", ["rand_forest" + source_ext, 'fast_hist.c'], extra_compile_args=['-I', '/usr/local/lib/python2.6/dist-packages/numpy/core/include'])]
 setup(name='rand_forest',
       cmdclass=cmdclass,
       version='0.0.1',
