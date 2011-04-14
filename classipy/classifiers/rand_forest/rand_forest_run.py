@@ -2,10 +2,11 @@
 import _rand_forest as rand_forest
 import random
 import numpy as np
+import cPickle as pickle
 
 
 def hist_to_str(hist):
-    hist = hist.items()
+    hist = list(enumerate(hist))
     hist.sort(key=lambda x: x[1], reverse=True)
     return ' '.join('%s:%.4g' % x for x in hist)
 
@@ -19,7 +20,7 @@ def feature_to_str(func):
     Returns:
         String representation
     """
-    return '%f <= x[%d]' % (func._thresh, func._dim)
+    return '%f <= x[%d]' % (func.__thresh, func.__dim)
 
 
 def build_graphviz_tree(tree):
@@ -56,23 +57,37 @@ def build_graphviz_tree(tree):
     return gv, google_gv
 
 
-def make_feature(dims):
+def gen_feature(dims):
     """Make a random decision feature on a vector
 
     Args:
         dims: Dimensions in the form [(min0, max0), ..., (min(N-1), max(N-1))]
 
     Returns:
-        Function of the form func(vec) = Boolean, True iff the feature passes
+        Serialialized string (opaque)
     """
     dim = random.randint(0, len(dims) - 1)
     min_val, max_val = dims[dim]
     # [0, 1) -> [min_val, max_val)
     thresh = random.random() * (max_val - min_val) + min_val
-    #print('[%d] x >= %f' % (dim, thresh))
+    return pickle.dumps({'dim': dim, 'thresh': thresh})
+
+
+def make_feature_func(feat_str):
+    """Load a feature form a serialized string
+
+    Args:
+        feat_str: Serialized feature string from gen_feature
+
+    Returns:
+        Function of the form func(vec) = Boolean, True iff the feature passes
+    """
+    data = pickle.loads(feat_str)
+    dim = data['dim']
+    thresh = data['thresh']
     func = lambda vec: vec[dim] >= thresh
-    func._dim = dim
-    func._thresh = thresh
+    func.__dim = dim
+    func.__thresh = thresh
     return func
 
 
@@ -93,11 +108,33 @@ def data_generator(num_points):
 
 
 def main():
-    label_values = data_generator(1000)
+    label_values = data_generator(10000)
     dims = [(0., 1.), (0., 1.)]
-    tree = rand_forest.train(label_values, lambda : make_feature(dims))
+    rfc = rand_forest.RandomForestClassifier(make_feature_func,
+                                             lambda : gen_feature(dims))
+    rfc.train(label_values)
+    correct = 0
+    total = 0
+    for x, y in label_values:
+        total += 1
+        if rfc.predict(y)[0][1] == x:
+            correct += 1
+    print('%f/%f' % (correct, total))
     print('\n\n')
-    print(build_graphviz_tree(tree)[1])
+    print(build_graphviz_tree(rfc.tree)[1])
+
+
+#def prof():
+#    import pstats
+#    import cProfile
+#    label_values = data_generator(1000)
+#    dims = [(0., 1.), (0., 1.)]
+#    aa = lambda : make_feature(dims)
+#    cProfile.runctx("rand_forest.train(label_values, aa, 2)", globals(), locals(), "Profile.prof")
+#    s = pstats.Stats("Profile.prof")
+#    s.strip_dirs().sort_stats("time").print_stats()
+
 
 if __name__ == '__main__':
     main()
+    #prof()

@@ -1,113 +1,165 @@
 import numpy as np
+cimport numpy as np
+
+cdef extern from "fast_hist.h":
+    void fast_histogram(int *labels, int labels_size, int *hist)
+    double fast_entropy(double *hist, int hist_size)
 
 
-cdef partition(label_values, func):
-    """
-    Args:
-        label_values: Iterator of vectors
-        func: func(vec) = Boolean
+cdef class RandomForestClassifier(object):
+    cdef object make_feature_func
+    cdef object gen_feature
+    cdef int num_feat
+    cdef int tree_depth
+    cdef double min_info
+    cdef int num_classes
+    cdef public object tree
+    
+    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=1000, tree_depth=4, min_info=.1):
+        self.make_feature_func = make_feature_func  # Takes a string feat to func
+        self.gen_feature = gen_feature  # Makes string representation of feature
+        self.num_feat = num_feat
+        self.tree_depth = tree_depth
+        self.min_info = min_info
+        self.num_classes = 0
+        self.tree = []
 
-    Returns:
-        Tuple of (ql, qr)
-        ql: Elements of vecs s.t. func is false
-        qr: Elements of vecs s.t. func is true
-    """
-    ql, qr = [], []
-    for label, value in label_values:
-        if func(value):
-            qr.append((label, value))
-        else:
-            ql.append((label, value))
-    return ql, qr
+    cdef partition_labels(self, labels, values, func):
+        """
+        Args:
+            labels: Iterator of ints
+            values: Iterator of vecs
+            func: func(vec) = Boolean
 
+        Returns:
+            Tuple of (ql, qr)
+            ql: Elements of vecs s.t. func is false
+            qr: Elements of vecs s.t. func is true
+        """
+        ql_ind, qr_ind = [], []
+        for ind, value in enumerate(values):
+            if func(value):
+                qr_ind.append(ind)
+            else:
+                ql_ind.append(ind)
+        return labels[ql_ind], labels[qr_ind]
 
-cdef normalized_histogram(labels):
-    """Computes a normalized histogram of labels
+    cdef partition_label_values(self, labels, values, func):
+        """
+        Args:
+            labels: Iterator of ints
+            values: Iterator of vecs
+            func: func(vec) = Boolean
 
-    Args:
-        labels:  List of labels
+        Returns:
+            Tuple of (ql, qr)
+            ql: Elements of vecs s.t. func is false
+            qr: Elements of vecs s.t. func is true
+        """
+        ql_ind, qr_ind = [], []
+        ql_val, qr_val = [], []
+        for ind, value in enumerate(values):
+            if func(value):
+                qr_ind.append(ind)
+                qr_val.append(value)
+            else:
+                ql_ind.append(ind)
+                ql_val.append(value)
+        return labels[ql_ind], ql_val, labels[qr_ind], qr_val
 
-    Returns:
-        Dict with key's as unique values of labels, values as probabilities
-    """
-    out = {}
-    if not labels:  # Nothing provided
-        return {}
-    for x in labels:
-        try:
-            out[x] += 1
-        except KeyError:
-            out[x] = 1
-    norm = 1. / len(labels)
-    # Ordered for numerical stability
-    for x in out:
-        out[x] = out[x] * norm
-    return out
+    cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
+        """Computes a normalized histogram of labels
 
+        Args:
+            labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
 
-cdef entropy(q):
-    """Shannon Entropy
+        Returns:
+            Ndarray with indexes as labels and values as prob.
+        """
+        if not labels.size:  # Nothing provided
+            return
+        # We are touching pointers here, so check the input before this
+        # if one of the labels goes out of bounds there will be a problem.
+        cdef np.ndarray out = np.zeros(self.num_classes, dtype=np.int32)
+        cdef int *out_p = <int *>out.data
+        cdef int *labels_p = <int *>labels.data
+        cdef int labels_dim = labels.shape[0]
+        fast_histogram(labels_p, labels_dim, out_p)
+        norm = 1. / len(labels)
+        return norm * out
 
-    Args:
-        q: List of (label, value)
+    cdef double entropy(self, np.ndarray[np.int32_t, ndim=1] q):
+        """Shannon Entropy
 
-    Returns:
-        Entropy in 'bits'
-    """
-    try:
-        q_labels, q_values = zip(*q)
-    except ValueError:
-        q_labels, q_values = [], []
-    hist = normalized_histogram(q_labels).itervalues()
-    return -sum(x * np.log2(x) for x in hist)
+        Args:
+            q: List of labels
 
+        Returns:
+            Entropy in 'bits'
+        """
+        cdef np.ndarray hist = self.normalized_histogram(q)
+        if hist == None:
+            return 0.
+        return fast_entropy(<double*>hist.data, <int>hist.shape[0])
 
-cdef information_gain(ql, qr):
-    """Compute the information gain of the split
+    cdef double information_gain(self, np.ndarray[np.int32_t, ndim=1] ql,
+                                 np.ndarray[np.int32_t, ndim=1] qr):
+        """Compute the information gain of the split
 
-    Args:
-        ql: List of (label, value)
-        qr: List of (label, value)
-    """
-    h_q = entropy(ql + qr)
-    h_ql = entropy(ql)
-    h_qr = entropy(qr)
-    pr_l = len(ql) / float(len(ql) + len(qr))
-    pr_r = 1. - pr_l
-    return h_q - pr_l * h_ql - pr_r * h_qr
+        Args:
+            ql: Ndarray of labels
+            qr: List of labels
+        """
+        h_q = self.entropy(np.concatenate((ql, qr)))
+        h_ql = self.entropy(ql)
+        h_qr = self.entropy(qr)
+        pr_l = len(ql) / float(len(ql) + len(qr))
+        pr_r = 1. - pr_l
+        return h_q - pr_l * h_ql - pr_r * h_qr
 
+    cdef train_find_feature(self, labels, values, tree_depth):
+        if tree_depth < 0:
+            try:
+                return [self.normalized_histogram(labels)]
+            except IndexError:
+                return {}
+        cdef float max_info_gain = -float('inf')
+        max_info_gain_func = None
+        for feat_num in range(self.num_feat):
+            func = self.make_feature_func(self.gen_feature())
+            ql, qr = self.partition_labels(labels, values, func)
+            info_gain = self.information_gain(ql,
+                                         qr)
+            if info_gain > max_info_gain:
+                max_info_gain = info_gain
+                max_info_gain_func = func
+        if max_info_gain <= self.min_info:
+            return [self.normalized_histogram(labels)]
+        print(max_info_gain)
+        max_info_gain_func._max_info_gain = max_info_gain
+        tree_depth = tree_depth - 1
+        ql_labels, ql_values, qr_labels, qr_values = self.partition_label_values(labels, values, max_info_gain_func)
+        return (max_info_gain_func,
+                self.train_find_feature(ql_labels, ql_values, tree_depth),
+                self.train_find_feature(qr_labels, qr_values, tree_depth))
 
-cdef train_find_feature(label_values, num_feat, tree_depth, min_info,
-                       make_feature):
-    if tree_depth < 0:
-        try:
-            return [normalized_histogram(zip(*label_values)[0])]
-        except IndexError:
-            return {}
-    max_info_gain = -float('inf')
-    max_info_gain_func = None
-    max_info_gain_ql = None
-    max_info_gain_qr = None
-    for feat_num in range(num_feat):
-        func = make_feature()
-        ql, qr = partition(label_values, func)
-        info_gain = information_gain(ql, qr)
-        if info_gain > max_info_gain:
-            max_info_gain = info_gain
-            max_info_gain_func = func
-            max_info_gain_ql = ql
-            max_info_gain_qr = qr
-    if max_info_gain <= min_info:
-        return [normalized_histogram(zip(*label_values)[0])]
-    max_info_gain_func._max_info_gain = max_info_gain
-    tree_depth = tree_depth - 1
-    return (max_info_gain_func,
-            train_find_feature(max_info_gain_ql, num_feat, tree_depth,
-                               min_info, make_feature),
-            train_find_feature(max_info_gain_qr, num_feat, tree_depth,
-                               min_info, make_feature))
+    def train(self, label_values):
+        labels, values = zip(*label_values)
+        labels = np.array(labels, dtype=np.int32)
+        self.num_classes = max(self.num_classes, np.max(labels) + 1)  # Requires we get one sample per class
+        assert np.min(labels) >= 0
+        assert np.max(labels) < self.num_classes
+        self.tree = self.train_find_feature(labels, values, self.tree_depth)
+        return self
 
-
-def train(label_values, make_feature, num_feat=10000, tree_depth=4,
-          min_info=.1):
-    return train_find_feature(label_values, num_feat, tree_depth, min_info, make_feature)
+    def predict(self, value, tree=None):
+        if tree == None:
+            tree = self.tree
+        if not tree:
+            return []
+        if len(tree) != 3:
+            return [(y, x) for x, y in sorted(enumerate(tree[0]),
+                                              key=lambda x: x[1], reverse=True)]
+        if tree[0](value):
+            return self.predict(value, tree[2])
+        return self.predict(value, tree[1])
