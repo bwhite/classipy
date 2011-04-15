@@ -15,7 +15,7 @@ cdef class RandomForestClassifier(object):
     cdef int num_classes
     cdef public object tree
     
-    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=1000, tree_depth=4, min_info=.1):
+    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.001):
         self.make_feature_func = make_feature_func  # Takes a string feat to func
         self.gen_feature = gen_feature  # Makes string representation of feature
         self.num_feat = num_feat
@@ -130,6 +130,7 @@ cdef class RandomForestClassifier(object):
             ql, qr = self.partition_labels(labels, values, func)
             info_gain = self.information_gain(ql,
                                          qr)
+            print(info_gain)
             if info_gain > max_info_gain:
                 max_info_gain = info_gain
                 max_info_gain_func = func
