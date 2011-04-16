@@ -29,7 +29,6 @@ cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
     double fast_entropy(double *hist, int hist_size)
 
-
 cdef class RandomForestClassifier(object):
     cdef object make_feature_func
     cdef object gen_feature
@@ -37,11 +36,12 @@ cdef class RandomForestClassifier(object):
     cdef int tree_depth
     cdef double min_info
     cdef int num_classes
-    cdef public object tree_ser
-    cdef public object tree
+    cdef int num_trees
+    cdef public object trees_ser
+    cdef public object trees
     cdef object feature_to_str
     
-    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.01, feature_to_str=None):
+    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.01, num_trees=1, feature_to_str=None):
         self.make_feature_func = make_feature_func  # Takes a string feat to func
         self.gen_feature = gen_feature  # Makes string representation of feature
         self.num_feat = num_feat
@@ -49,8 +49,9 @@ cdef class RandomForestClassifier(object):
         self.num_classes = 0
         self.min_info = min_info
         self.feature_to_str = feature_to_str  # If available, use for debugging
-        self.tree = []
-        self.tree_ser = []
+        self.num_trees = num_trees
+        self.trees = []
+        self.trees_ser = []
 
     cdef partition_labels(self, labels, values, func):
         """
@@ -120,7 +121,7 @@ cdef class RandomForestClassifier(object):
         """Shannon Entropy
 
         Args:
-            q: List of labels
+            q: Np array of integral labels
 
         Returns:
             Entropy in 'bits'
@@ -135,8 +136,8 @@ cdef class RandomForestClassifier(object):
         """Compute the information gain of the split
 
         Args:
-            ql: Ndarray of labels
-            qr: List of labels
+            ql: Np array of labels
+            qr: Np array of labels
         """
         h_q = self.entropy(np.concatenate((ql, qr)))
         h_ql = self.entropy(ql)
@@ -146,6 +147,17 @@ cdef class RandomForestClassifier(object):
         return h_q - pr_l * h_ql - pr_r * h_qr
 
     cdef train_find_feature(self, labels, values, tree_depth):
+        """Recursively and greedily train the tree
+
+        Args:
+            labels: Np array of labels
+            values: List of opaque values (given to the feature)
+            tree_depth: Num of levels more in tree (<0 terminates)
+
+        Returns:
+            (prob array, ) if leaf else
+            (func_ser, left_tree(false), right_tree(true), metadata)
+        """
         if tree_depth < 0:
             return (self.normalized_histogram(labels),)
         cdef float max_info_gain = -float('inf')
@@ -176,11 +188,19 @@ cdef class RandomForestClassifier(object):
                 self.train_find_feature(qr_labels, qr_values, tree_depth),
                 {'info_gain': max_info_gain})
 
-    cdef tree_deserialize(self, tree_ser=None):
-        if tree_ser == None:
-            tree_ser = self.tree_ser
-        if not tree_ser:
-            return []
+    cdef tree_deserialize(self, tree_ser):
+        """Given a tree_ser, gives back a tree
+
+        Args:
+            tree_ser: Tree of the form (recursive)
+                (func_ser, left_tree(false), right_tree(true), metadata)
+                until the leaf nodes which are (prob array, )
+
+        Returns:
+            Same structure except func_ser is converted to func using
+            make_feature_func.
+        """
+        assert len(tree_ser) == 4 or len(tree_ser) == 1
         if len(tree_ser) != 4:
             return tree_ser
         return (self.make_feature_func(tree_ser[0]),
@@ -189,23 +209,63 @@ cdef class RandomForestClassifier(object):
                 tree_ser[3])
 
     def train(self, label_values):
+        """Train the classifier
+
+        If num_trees > 1, the data is split evenly and contiguously.  This
+        lets you control which data each tree gets.  Data not evenly divisible
+        is unused.
+
+        Args:
+            label_values: List of (label, values) where
+                0 <= label < num_classes.  The value can be anything as it is
+                only given to the provided functions.
+
+        Return:
+            self
+        """
         labels, values = zip(*label_values)
         labels = np.array(labels, dtype=np.int32)
         self.num_classes = max(self.num_classes, np.max(labels) + 1)  # Requires we get one sample per class
         assert np.min(labels) >= 0
         assert np.max(labels) < self.num_classes
-        self.tree_ser = self.train_find_feature(labels, values, self.tree_depth)
-        self.tree = self.tree_deserialize()
+        self.trees_ser, self.trees = [], []
+        s = len(labels) / self.num_trees  # Samples per tree (round down, leftovers not trained on)
+        for t in range(self.num_trees):
+            self.trees_ser.append(self.train_find_feature(labels[t * s: (t + 1) * s],
+                                                          values[t * s: (t + 1) * s],
+                                                          self.tree_depth))
+            self.trees.append(self.tree_deserialize(self.trees_ser[-1]))
+        # TODO: We may want to learn the probabilities on the entire dataset
         return self
 
-    def predict(self, value, tree=None):
-        if tree == None:
-            tree = self.tree
-        if not tree:
-            return []
+    cdef predict_tree(self, value, tree):
+        """Perform prediction using a tree recursively
+
+        Args:
+            value: The value to be classified (given to the features)
+            tree: Tree of the form (recursive)
+                (func, left_tree(false), right_tree(true), metadata)
+                until the leaf nodes which are (prob array, )
+        Returns:
+            Prob array belonging to the leaf we end up in
+        """
+        assert len(tree) == 4 or len(tree) == 1
         if len(tree) != 4:
-            return [(y, x) for x, y in sorted(enumerate(tree[0]),
-                                              key=lambda x: x[1], reverse=True)]
+            return tree[0]
         if tree[0](value):
-            return self.predict(value, tree[2])
-        return self.predict(value, tree[1])
+            return self.predict_tree(value, tree[2])
+        return self.predict_tree(value, tree[1])
+
+    def predict(self, value):
+        """Perform classifier prediction using model
+
+        Args:
+            value: The value to be classified (given to the features)
+
+        Returns:
+            List of (prob, label) descending by probability
+        """
+        mean_pred = np.mean([self.predict_tree(value, t) for t in self.trees], 0)
+        out = [x[::-1] for x in enumerate(mean_pred)]
+        out.sort(reverse=True)
+        return out

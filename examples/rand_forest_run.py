@@ -120,7 +120,8 @@ def main():
     label_values = data_generator(50000)
     dims = [(0., 1.), (0., 1.)]
     rfc = classipy.RandomForestClassifier(make_feature_func,
-                                          lambda : gen_feature(dims))
+                                          lambda : gen_feature(dims),
+                                          num_trees=3)
     rfc.train(label_values)
     correct = 0
     total = 0
@@ -130,8 +131,10 @@ def main():
             correct += 1
     print('%f/%f' % (correct, total))
     print('\n\n')
-    print('Decision tree graph (open in your browser)')
-    print(build_graphviz_tree(rfc.tree)[1])
+    print('Decision tree graphs (open in your browser)')
+    for t in rfc.trees:
+        print(build_graphviz_tree(t)[1])
+        print('')
 
 
 def prof():
