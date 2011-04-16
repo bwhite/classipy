@@ -1,8 +1,17 @@
-#import rand_forest
-import _rand_forest as rand_forest
+"""
+Usage:
+
+python rand_forest_run.py (task)
+where task is one of
+    test: Generates a classifier and tests it (default)
+    profile: Runs test in profile mode (for best results compile rand_forest.pyx
+        with the profiling comment)
+"""
+import classipy
 import random
 import numpy as np
 import cPickle as pickle
+import sys
 
 
 def hist_to_str(hist):
@@ -35,7 +44,7 @@ def build_graphviz_tree(tree):
             node_names, links = [cur_name], []
             links.append('%s->%s[color=%s]' % (parent, cur_id, color))
             return node_names, links
-        cur_name = '%s[label="I[%f]P[%s]"]' % (cur_id, tree[0]._max_info_gain,
+        cur_name = '%s[label="I[%f]P[%s]"]' % (cur_id, tree[3]['info_gain'],
                                                feature_to_str(tree[0]))
         node_names = [cur_name]
         links = []
@@ -108,10 +117,10 @@ def data_generator(num_points):
 
 
 def main():
-    label_values = data_generator(10000)
+    label_values = data_generator(50000)
     dims = [(0., 1.), (0., 1.)]
-    rfc = rand_forest.RandomForestClassifier(make_feature_func,
-                                             lambda : gen_feature(dims))
+    rfc = classipy.RandomForestClassifier(make_feature_func,
+                                          lambda : gen_feature(dims))
     rfc.train(label_values)
     correct = 0
     total = 0
@@ -121,20 +130,21 @@ def main():
             correct += 1
     print('%f/%f' % (correct, total))
     print('\n\n')
+    print('Decision tree graph (open in your browser)')
     print(build_graphviz_tree(rfc.tree)[1])
 
 
-#def prof():
-#    import pstats
-#    import cProfile
-#    label_values = data_generator(1000)
-#    dims = [(0., 1.), (0., 1.)]
-#    aa = lambda : make_feature(dims)
-#    cProfile.runctx("rand_forest.train(label_values, aa, 2)", globals(), locals(), "Profile.prof")
-#    s = pstats.Stats("Profile.prof")
-#    s.strip_dirs().sort_stats("time").print_stats()
-
+def prof():
+    import pstats
+    import cProfile
+    cProfile.runctx("main()", globals(), locals(), "Profile.prof")
+    s = pstats.Stats("Profile.prof")
+    s.strip_dirs().sort_stats("time").print_stats()
 
 if __name__ == '__main__':
-    main()
-    #prof()
+    if len(sys.argv) < 2 or sys.argv[1] == 'test':
+        main()
+    elif sys.argv[1] == 'profile':
+        prof()
+    else:
+        print(__doc__)

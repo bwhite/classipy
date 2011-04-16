@@ -1,3 +1,27 @@
+#!/usr/bin/env python
+# (C) Copyright 2010 Brandyn A. White
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Random Forest Classifier
+See: http://research.microsoft.com/pubs/145347/BodyPartRecognition.pdf
+and: http://cvlab.epfl.ch/~lepetit/papers/lepetit_cvpr05.pdf
+"""
+
+__author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
+__license__ = 'GPL V3'
+
 import numpy as np
 cimport numpy as np
 
@@ -13,16 +37,20 @@ cdef class RandomForestClassifier(object):
     cdef int tree_depth
     cdef double min_info
     cdef int num_classes
+    cdef public object tree_ser
     cdef public object tree
+    cdef object feature_to_str
     
-    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.001):
+    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.01, feature_to_str=None):
         self.make_feature_func = make_feature_func  # Takes a string feat to func
         self.gen_feature = gen_feature  # Makes string representation of feature
         self.num_feat = num_feat
         self.tree_depth = tree_depth
-        self.min_info = min_info
         self.num_classes = 0
+        self.min_info = min_info
+        self.feature_to_str = feature_to_str  # If available, use for debugging
         self.tree = []
+        self.tree_ser = []
 
     cdef partition_labels(self, labels, values, func):
         """
@@ -67,7 +95,7 @@ cdef class RandomForestClassifier(object):
                 ql_val.append(value)
         return labels[ql_ind], ql_val, labels[qr_ind], qr_val
 
-    cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
+    cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(self,np.ndarray[np.int32_t, ndim=1] labels):
         """Computes a normalized histogram of labels
 
         Args:
@@ -119,30 +147,46 @@ cdef class RandomForestClassifier(object):
 
     cdef train_find_feature(self, labels, values, tree_depth):
         if tree_depth < 0:
-            try:
-                return [self.normalized_histogram(labels)]
-            except IndexError:
-                return {}
+            return (self.normalized_histogram(labels),)
         cdef float max_info_gain = -float('inf')
         max_info_gain_func = None
+        max_info_gain_func_ser = None
         for feat_num in range(self.num_feat):
-            func = self.make_feature_func(self.gen_feature())
+            func_ser = self.gen_feature()
+            func = self.make_feature_func(func_ser)
             ql, qr = self.partition_labels(labels, values, func)
             info_gain = self.information_gain(ql,
-                                         qr)
-            print(info_gain)
+                                              qr)
+            if self.feature_to_str:
+                print('Feat[%s] InfoGain[%f]' % (self.feature_to_str(func_ser),
+                                                 info_gain))
             if info_gain > max_info_gain:
                 max_info_gain = info_gain
+                max_info_gain_func_ser = func_ser
                 max_info_gain_func = func
         if max_info_gain <= self.min_info:
-            return [self.normalized_histogram(labels)]
-        print(max_info_gain)
-        max_info_gain_func._max_info_gain = max_info_gain
+            return (self.normalized_histogram(labels),)
+        if self.feature_to_str:
+            print('MaxInfo: Feat[%s] InfoGain[%f]' % (self.feature_to_str(max_info_gain_func_ser),
+                                                      max_info_gain))
         tree_depth = tree_depth - 1
         ql_labels, ql_values, qr_labels, qr_values = self.partition_label_values(labels, values, max_info_gain_func)
-        return (max_info_gain_func,
+        return (max_info_gain_func_ser,
                 self.train_find_feature(ql_labels, ql_values, tree_depth),
-                self.train_find_feature(qr_labels, qr_values, tree_depth))
+                self.train_find_feature(qr_labels, qr_values, tree_depth),
+                {'info_gain': max_info_gain})
+
+    cdef tree_deserialize(self, tree_ser=None):
+        if tree_ser == None:
+            tree_ser = self.tree_ser
+        if not tree_ser:
+            return []
+        if len(tree_ser) != 4:
+            return tree_ser
+        return (self.make_feature_func(tree_ser[0]),
+                self.tree_deserialize(tree_ser[1]),
+                self.tree_deserialize(tree_ser[2]),
+                tree_ser[3])
 
     def train(self, label_values):
         labels, values = zip(*label_values)
@@ -150,7 +194,8 @@ cdef class RandomForestClassifier(object):
         self.num_classes = max(self.num_classes, np.max(labels) + 1)  # Requires we get one sample per class
         assert np.min(labels) >= 0
         assert np.max(labels) < self.num_classes
-        self.tree = self.train_find_feature(labels, values, self.tree_depth)
+        self.tree_ser = self.train_find_feature(labels, values, self.tree_depth)
+        self.tree = self.tree_deserialize()
         return self
 
     def predict(self, value, tree=None):
@@ -158,7 +203,7 @@ cdef class RandomForestClassifier(object):
             tree = self.tree
         if not tree:
             return []
-        if len(tree) != 3:
+        if len(tree) != 4:
             return [(y, x) for x, y in sorted(enumerate(tree[0]),
                                               key=lambda x: x[1], reverse=True)]
         if tree[0](value):
