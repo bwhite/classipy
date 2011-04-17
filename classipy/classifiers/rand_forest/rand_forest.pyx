@@ -24,10 +24,14 @@ __license__ = 'GPL V3'
 
 import numpy as np
 cimport numpy as np
+import multiprocessing
+import Queue
+import operator
 
 cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
     double fast_entropy(double *hist, int hist_size)
+
 
 cdef class RandomForestClassifier(object):
     cdef object make_feature_func
@@ -40,8 +44,9 @@ cdef class RandomForestClassifier(object):
     cdef public object trees_ser
     cdef public object trees
     cdef object feature_to_str
+    cdef int num_procs
     
-    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.01, num_trees=1, feature_to_str=None):
+    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.01, num_trees=1, feature_to_str=None, num_procs=1):
         self.make_feature_func = make_feature_func  # Takes a string feat to func
         self.gen_feature = gen_feature  # Makes string representation of feature
         self.num_feat = num_feat
@@ -52,6 +57,7 @@ cdef class RandomForestClassifier(object):
         self.num_trees = num_trees
         self.trees = []
         self.trees_ser = []
+        self.num_procs = num_procs
 
     cdef partition_labels(self, labels, values, func):
         """
@@ -146,6 +152,39 @@ cdef class RandomForestClassifier(object):
         pr_r = 1. - pr_l
         return h_q - pr_l * h_ql - pr_r * h_qr
 
+    cpdef train_find_max_feature(self, labels, values, num_feat, queue=None):
+        """
+
+        Args:
+            labels: Np array of labels
+            values: List of opaque values (given to the feature)
+            num_feat: Number of features to compute
+            queue: If present then the return value should be put here (default: None)
+
+        Returns:
+            info_gain, serialized function
+        """
+        cdef float max_info_gain = -float('inf')
+        max_info_gain_func = None
+        max_info_gain_func_ser = None
+        for feat_num in range(num_feat):
+            func_ser = self.gen_feature()
+            func = self.make_feature_func(func_ser)
+            ql, qr = self.partition_labels(labels, values, func)
+            info_gain = self.information_gain(ql,
+                                              qr)
+            if self.feature_to_str:
+                print('Feat[%s] InfoGain[%f]' % (self.feature_to_str(func_ser),
+                                                 info_gain))
+            if info_gain > max_info_gain:
+                max_info_gain = info_gain
+                max_info_gain_func_ser = func_ser
+        out = max_info_gain, max_info_gain_func_ser
+        if queue:
+            queue.put(out)
+        return out
+
+
     cdef train_find_feature(self, labels, values, tree_depth):
         """Recursively and greedily train the tree
 
@@ -161,27 +200,23 @@ cdef class RandomForestClassifier(object):
         if tree_depth < 0:
             return (self.normalized_histogram(labels),)
         cdef float max_info_gain = -float('inf')
-        max_info_gain_func = None
-        max_info_gain_func_ser = None
-        for feat_num in range(self.num_feat):
-            func_ser = self.gen_feature()
-            func = self.make_feature_func(func_ser)
-            ql, qr = self.partition_labels(labels, values, func)
-            info_gain = self.information_gain(ql,
-                                              qr)
-            if self.feature_to_str:
-                print('Feat[%s] InfoGain[%f]' % (self.feature_to_str(func_ser),
-                                                 info_gain))
-            if info_gain > max_info_gain:
-                max_info_gain = info_gain
-                max_info_gain_func_ser = func_ser
-                max_info_gain_func = func
+        if self.num_procs <= 1 or len(labels) < 10:
+            max_info_gain, max_info_gain_func_ser = self.train_find_max_feature(labels, values, self.num_feat)
+        else:
+            queue = multiprocessing.Queue()
+            ps = [multiprocessing.Process(target=self.train_find_max_feature,
+                                          args=(labels, values, self.num_feat / self.num_procs, queue))
+                  for x in range(self.num_procs)]
+            for p in ps: p.start()
+            max_info_gain, max_info_gain_func_ser = max([queue.get() for p in ps], key=operator.itemgetter(0))
+            for p in ps: p.join()
         if max_info_gain <= self.min_info:
             return (self.normalized_histogram(labels),)
         if self.feature_to_str:
             print('MaxInfo: Feat[%s] InfoGain[%f]' % (self.feature_to_str(max_info_gain_func_ser),
                                                       max_info_gain))
         tree_depth = tree_depth - 1
+        max_info_gain_func = self.make_feature_func(max_info_gain_func_ser)
         ql_labels, ql_values, qr_labels, qr_values = self.partition_label_values(labels, values, max_info_gain_func)
         return (max_info_gain_func_ser,
                 self.train_find_feature(ql_labels, ql_values, tree_depth),
