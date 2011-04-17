@@ -46,7 +46,7 @@ cdef class RandomForestClassifier(object):
         self.gen_feature = gen_feature  # Makes string representation of feature
         self.num_feat = num_feat
         self.tree_depth = tree_depth
-        self.num_classes = 0
+        self.num_classes = num_classes
         self.min_info = min_info
         self.feature_to_str = feature_to_str  # If available, use for debugging
         self.num_trees = num_trees
