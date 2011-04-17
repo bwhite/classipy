@@ -28,7 +28,7 @@ try:
 except ImportError, e:
     sys.stderr.write('Classipy Error: pysvmlight is not installed.  '
                      'A copy is available in classipy/thirdparty.  '
-                     'SVMLight will be unusable without it.')
+                     'SVMLight will be unusable without it.\n\n')
 
 from base import BinaryClassifier
 
