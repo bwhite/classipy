@@ -21,13 +21,14 @@ __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
 __license__ = 'GPL V3'
 
 import math
+import sys
 
 try:
     import svmlight
 except ImportError, e:
-    print('Error: pysvmlight is not installed.  '
-          'A copy is available in classipy/thirdparty')
-    raise e
+    sys.stderr.write('Classipy Error: pysvmlight is not installed.  '
+                     'A copy is available in classipy/thirdparty.  '
+                     'SVMLight will be unusable without it.')
 
 from base import BinaryClassifier
 
