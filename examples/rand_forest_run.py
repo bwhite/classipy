@@ -124,6 +124,11 @@ def main():
                                           num_trees=3,
                                           num_procs=8)
     rfc.train(label_values)
+    # Test pickle
+    print('Pickling')
+    rfc = classipy.RandomForestClassifier.loads(rfc.dumps(), make_feature_func,
+                                                lambda : gen_feature(dims))
+    print('Predicting')
     correct = 0
     total = 0
     for x, y in label_values:

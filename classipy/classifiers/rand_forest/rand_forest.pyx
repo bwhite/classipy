@@ -27,6 +27,7 @@ cimport numpy as np
 import multiprocessing
 import Queue
 import operator
+import cPickle as pickle
 
 cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
@@ -34,8 +35,8 @@ cdef extern from "fast_hist.h":
 
 
 cdef class RandomForestClassifier(object):
-    cdef object make_feature_func
-    cdef object gen_feature
+    cdef public object make_feature_func
+    cdef public object gen_feature
     cdef int num_feat
     cdef int tree_depth
     cdef double min_info
@@ -43,21 +44,57 @@ cdef class RandomForestClassifier(object):
     cdef int num_trees
     cdef public object trees_ser
     cdef public object trees
-    cdef object feature_to_str
+    cdef public object feature_to_str
     cdef int num_procs
     
-    def __init__(self, make_feature_func, gen_feature, num_classes=2, num_feat=100, tree_depth=4, min_info=.01, num_trees=1, feature_to_str=None, num_procs=1):
+    def __init__(self, make_feature_func, gen_feature, feature_to_str=None, num_classes=2, num_feat=100, tree_depth=4,
+                 min_info=.01, num_trees=1, num_procs=1, trees_ser=None):
+        # From args (these must be provided again during deserialization)
         self.make_feature_func = make_feature_func  # Takes a string feat to func
         self.gen_feature = gen_feature  # Makes string representation of feature
+        self.feature_to_str = feature_to_str  # If available, use for debugging
+        # From args (everything here must be in __reduce__ for pickle to work)
+        self.num_classes = num_classes
         self.num_feat = num_feat
         self.tree_depth = tree_depth
-        self.num_classes = num_classes
         self.min_info = min_info
-        self.feature_to_str = feature_to_str  # If available, use for debugging
         self.num_trees = num_trees
-        self.trees = []
-        self.trees_ser = []
         self.num_procs = num_procs
+        self.trees_ser = trees_ser if trees_ser else []
+        # Derived from args
+        self.trees = []
+
+    def __reduce__(self):
+        return RandomForestClassifier, (None, None, None,
+                                        self.num_classes, self.num_feat,
+                                        self.tree_depth, self.min_info,
+                                        self.num_trees, self.num_procs,
+                                        self.trees_ser)
+
+    def dumps(self):
+        """Serializes the classifier to a string
+
+        Returns:
+            A string that can be passed to the class' loads method
+        """
+        return pickle.dumps(self, -1)
+
+    @classmethod
+    def loads(cls, s, make_feature_func, gen_feature=None, feature_to_str=None):
+        """Returns a classifier instance given a serialized form
+
+        Args:
+            s: Serialized string
+
+        Returns:
+            An instance of this class as it was before it was serialized
+        """
+        out = pickle.loads(s)
+        out.make_feature_func = make_feature_func
+        out.gen_feature = gen_feature
+        out.feature_to_str = feature_to_str
+        out.trees = map(out.tree_deserialize, out.trees_ser)
+        return out
 
     cdef partition_labels(self, labels, values, func):
         """
@@ -223,7 +260,7 @@ cdef class RandomForestClassifier(object):
                 self.train_find_feature(qr_labels, qr_values, tree_depth),
                 {'info_gain': max_info_gain})
 
-    cdef tree_deserialize(self, tree_ser):
+    cpdef tree_deserialize(self, tree_ser):
         """Given a tree_ser, gives back a tree
 
         Args:
@@ -234,7 +271,12 @@ cdef class RandomForestClassifier(object):
         Returns:
             Same structure except func_ser is converted to func using
             make_feature_func.
+
+        Raises:
+            ValueError: When make_feature_func is None.
         """
+        if not self.make_feature_func:
+            raise ValueError('make_feature_func must be set!')
         assert len(tree_ser) == 4 or len(tree_ser) == 1
         if len(tree_ser) != 4:
             return tree_ser
@@ -257,7 +299,12 @@ cdef class RandomForestClassifier(object):
 
         Return:
             self
+
+        Raises:
+            ValueError: When make_feature_func or gen_feature are None.
         """
+        if not self.make_feature_func or not self.gen_feature:
+            raise ValueError('make_feature_func and gen_feature must be set!')
         labels, values = zip(*label_values)
         labels = np.array(labels, dtype=np.int32)
         self.num_classes = max(self.num_classes, np.max(labels) + 1)  # Requires we get one sample per class
