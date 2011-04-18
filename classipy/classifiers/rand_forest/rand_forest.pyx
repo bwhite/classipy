@@ -32,7 +32,7 @@ import cPickle as pickle
 cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
     double fast_entropy(double *hist, int hist_size)
-    void depth_predict(np.uint16_t *depth, double *out_prob, np.uint16_t *out_ind, np.int32_t *trees, np.int32_t *links, double *leaves,
+    void depth_predict(np.uint16_t *depth, double *out_prob, np.uint8_t *out_ind, np.int32_t *trees, np.int32_t *links, double *leaves,
                    double *u, double *v, np.int32_t *t, int num_trees, int num_nodes, int num_leaves, int num_classes)
 
 
@@ -395,7 +395,7 @@ cdef class FastClassifier(object):
         self.temp_links = []
         self.trees = np.array([self.tree_deserialize(x)
                                for x in trees_ser], dtype=np.int32)
-        self.leaves = np.array(self.temp_leaves, dtype=np.int32).ravel()
+        self.leaves = np.array(self.temp_leaves, dtype=np.float64).ravel()
         self.links = np.array(self.temp_links, dtype=np.int32).ravel()
         self.u = np.array(self.temp_u, dtype=np.float64).ravel()
         self.v = np.array(self.temp_v, dtype=np.float64).ravel()
@@ -422,6 +422,7 @@ cdef class FastClassifier(object):
             val = self.leaf_counter
             self.leaf_counter += 1
             self.temp_leaves.append(tree_ser[0])
+            print('Leaf[%d] = %s' % (val, self.temp_leaves[-1]))
             return -val - 1
         val = self.node_counter
         self.node_counter += 1
@@ -435,10 +436,8 @@ cdef class FastClassifier(object):
 
     def predict(self, np.ndarray[np.uint16_t, ndim=2] depth_image):
         cdef np.ndarray depth = depth_image.ravel()
-        cdef np.ndarray out_ind = np.zeros(depth_image.size, dtype=np.uint16)
+        cdef np.ndarray out_ind = np.zeros(depth_image.size, dtype=np.uint8)
         cdef np.ndarray out_prob = np.zeros(depth_image.size, dtype=np.float64)
         print('Predicting')
-        #void depth_predict(uint16_t *depth, double *out_prob, uint16_t *out_ind, int32_t *trees, int32_t *links, double *leaves,
-        #           double *u, double *v, int *t, int num_trees, int num_nodes, int num_leaves, int num_classes);
-        depth_predict(<np.uint16_t *>depth.data, <double *>out_prob.data, <np.uint16_t *>out_ind.data, <np.int32_t *>self.trees.data, <np.int32_t *>self.links.data, <double *>self.leaves.data, <double *>self.u.data, <double *>self.v.data, <np.int32_t *>self.t.data, self.num_trees, self.num_nodes, self.num_leaves, self.num_classes)
+        depth_predict(<np.uint16_t *>depth.data, <double *>out_prob.data, <np.uint8_t *>out_ind.data, <np.int32_t *>self.trees.data, <np.int32_t *>self.links.data, <double *>self.leaves.data, <double *>self.u.data, <double *>self.v.data, <np.int32_t *>self.t.data, self.num_trees, self.num_nodes, self.num_leaves, self.num_classes)
         return out_ind.reshape((480, 640)), out_prob.reshape((480, 640))
