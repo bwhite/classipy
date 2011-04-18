@@ -355,9 +355,23 @@ cdef class RandomForestClassifier(object):
 
 # NOTE: These are just to simplify building, they will be moved later
 cdef class FastClassifier(object):
-    cdef object trees
     cdef object depth_points
     cdef int big_number
+    # Below are used for updating the trees
+    cdef int node_counter
+    cdef int leaf_counter
+    cdef object temp_u
+    cdef object temp_v
+    cdef object temp_t
+    cdef object temp_leaves
+    cdef object temp_links
+    # Below are used for storing the trees
+    cdef np.ndarray trees # [trees]
+    cdef np.ndarray u  # [nodes, 2] y/x vals
+    cdef np.ndarray v  # [nodes, 2]  y/x vals
+    cdef np.ndarray t  # [nodes] for all nodes
+    cdef np.ndarray leaves  # [leaves, num_classes]
+    cdef np.ndarray links  # [nodes, 2] false/true paths
 
     def __init__(self, trees_ser):
         self.update_trees(trees_ser)
@@ -372,8 +386,18 @@ cdef class FastClassifier(object):
         return u, v, t
 
     cpdef update_trees(self, trees_ser):
-        self.trees = [self.tree_deserialize(x)
-                      for x in trees_ser]
+        self.node_counter = 0
+        self.leaf_counter = 0
+        self.temp_u, self.temp_v, self.temp_t = [], [], []
+        self.temp_leaves = []
+        self.temp_links = []
+        self.trees = np.array([self.tree_deserialize(x)
+                               for x in trees_ser], dtype=np.int32)
+        self.leaves = np.array(self.temp_leaves, dtype=np.int32)
+        self.links = np.array(self.temp_links, dtype=np.int32)
+        self.u = np.array(self.temp_u, dtype=np.float64)
+        self.v = np.array(self.temp_v, dtype=np.float64)
+        self.t = np.array(self.temp_t, dtype=np.float64)
 
     cpdef tree_deserialize(self, tree_ser):
         """Given a tree_ser, gives back a tree
@@ -389,14 +413,21 @@ cdef class FastClassifier(object):
             make_feature_func.
         """
         if len(tree_ser) != 4:
-            return tree_ser
-        return (self.make_feature_func(tree_ser[0]),
-                self.tree_deserialize(tree_ser[1]),
-                self.tree_deserialize(tree_ser[2]),
-                tree_ser[3])
+            val = self.leaf_counter
+            self.leaf_counter += 1
+            self.temp_leaves.append(tree_ser[0])
+            return -val - 1
+        val = self.node_counter
+        self.node_counter += 1
+        u, v, t = self.make_feature_func(tree_ser[0])
+        self.temp_u.append(u)
+        self.temp_v.append(v)
+        self.temp_t.append(t)
+        self.temp_links.append([self.tree_deserialize(tree_ser[1]),
+                                self.tree_deserialize(tree_ser[2])])
+        return val
 
-                
-    cdef inline int depth_samp(self, int *depth_p, np.ndarray[np.float64_t, ndim=1] x):
+    cdef inline int depth_samp(self, int *depth_p, np.ndarray[np.int32_t, ndim=1] x):
         cdef np.ndarray y = np.array(x, dtype=np.int32)
         if not (0 <= y[0] < 480 and 0 <= y[1] < 640):
             return self.big_number
@@ -408,29 +439,25 @@ cdef class FastClassifier(object):
     cdef inline int func(self, int *depth_p, np.ndarray[np.int32_t, ndim=1] x,
                           np.ndarray[np.float64_t, ndim=1] u, np.ndarray[np.float64_t, ndim=1] v, double t):
         d_x_inv = 1. / self.depth_samp(depth_p, x)
-        return (self.depth_samp(depth_p, x + u * d_x_inv) -
-                self.depth_samp(depth_p, x + v * d_x_inv)) >= t
+        return (self.depth_samp(depth_p, np.array(x + u * d_x_inv, dtype=np.int32)) -
+                self.depth_samp(depth_p, np.array(x + v * d_x_inv, dtype=np.int32))) >= t
 
 
-    cpdef predict(self, np.ndarray[np.int16_t, ndim=2] depth_image):
+    cpdef predict(self, np.ndarray[np.uint16_t, ndim=2] depth_image):
         cdef np.ndarray depth = np.array(depth_image.ravel(), dtype=np.int32)
         cdef int *depth_p = <int *>depth.data
         cdef int i
         cdef int j
         cdef np.ndarray x
         cdef np.ndarray out = np.zeros((480, 640), dtype=np.int32)
-        cdef np.ndarray u
-        cdef np.ndarray v
-        cdef double t
-        for x in self.depth_points:
+        for x in self.depth_points[:100]:
             probs = []
-            for cur_tree in self.trees:
-                while len(cur_tree) == 4:
-                    u, v, t = cur_tree[0]
-                    if self.func(depth_p, x, u, v, t):
-                        cur_tree = cur_tree[2]
-                    else:
-                        cur_tree = cur_tree[1]
-                probs.append(cur_tree[0])
+            for cur_node in self.trees:
+                while cur_node >= 0:
+                    cur_node = self.links[cur_node][self.func(depth_p, x,
+                                                              self.u[cur_node],
+                                                              self.v[cur_node],
+                                                              self.t[cur_node])]
+                probs.append(self.leaves[-cur_node + 1])
             out[x[0], x[1]] = np.argmax(np.sum(probs))
         return out
