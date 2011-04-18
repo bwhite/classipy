@@ -93,7 +93,8 @@ cdef class RandomForestClassifier(object):
         out.make_feature_func = make_feature_func
         out.gen_feature = gen_feature
         out.feature_to_str = feature_to_str
-        out.trees = map(out.tree_deserialize, out.trees_ser)
+        out.trees = [out.tree_deserialize(x)
+                     for x in out.trees_ser]
         return out
 
     cdef partition_labels(self, labels, values, func):
@@ -260,31 +261,6 @@ cdef class RandomForestClassifier(object):
                 self.train_find_feature(qr_labels, qr_values, tree_depth),
                 {'info_gain': max_info_gain})
 
-    cpdef tree_deserialize(self, tree_ser):
-        """Given a tree_ser, gives back a tree
-
-        Args:
-            tree_ser: Tree of the form (recursive)
-                (func_ser, left_tree(false), right_tree(true), metadata)
-                until the leaf nodes which are (prob array, )
-
-        Returns:
-            Same structure except func_ser is converted to func using
-            make_feature_func.
-
-        Raises:
-            ValueError: When make_feature_func is None.
-        """
-        if not self.make_feature_func:
-            raise ValueError('make_feature_func must be set!')
-        assert len(tree_ser) == 4 or len(tree_ser) == 1
-        if len(tree_ser) != 4:
-            return tree_ser
-        return (self.make_feature_func(tree_ser[0]),
-                self.tree_deserialize(tree_ser[1]),
-                self.tree_deserialize(tree_ser[2]),
-                tree_ser[3])
-
     def train(self, label_values):
         """Train the classifier
 
@@ -350,4 +326,111 @@ cdef class RandomForestClassifier(object):
         mean_pred = np.mean([self.predict_tree(value, t) for t in self.trees], 0)
         out = [x[::-1] for x in enumerate(mean_pred)]
         out.sort(reverse=True)
+        return out
+
+    cpdef tree_deserialize(self, tree_ser):
+        """Given a tree_ser, gives back a tree
+
+        Args:
+            tree_ser: Tree of the form (recursive)
+                (func_ser, left_tree(false), right_tree(true), metadata)
+                until the leaf nodes which are (prob array, )
+
+        Returns:
+            Same structure except func_ser is converted to func using
+            make_feature_func.
+
+        Raises:
+            ValueError: When make_feature_func or gen_feature are None.
+        """
+        if not self.make_feature_func:
+            raise ValueError('make_feature_func must be set!')
+        if len(tree_ser) != 4:
+            return tree_ser
+        return (self.make_feature_func(tree_ser[0]),
+                self.tree_deserialize(tree_ser[1]),
+                self.tree_deserialize(tree_ser[2]),
+                tree_ser[3])
+
+
+# NOTE: These are just to simplify building, they will be moved later
+cdef class FastClassifier(object):
+    cdef object trees
+    cdef object depth_points
+    cdef int big_number
+
+    def __init__(self, trees_ser):
+        self.update_trees(trees_ser)
+        self.depth_points = [np.array([x, y], dtype=np.int32) for x in range(480) for y in range(640)]
+        self.big_number = 2**11 - 1  # TODO Tweak
+
+    cdef make_feature_func(self, feat_str):
+        data = pickle.loads(feat_str)
+        u = data['u']
+        v = data['v']
+        t = data['t']
+        return u, v, t
+
+    cpdef update_trees(self, trees_ser):
+        self.trees = [self.tree_deserialize(x)
+                      for x in trees_ser]
+
+    cpdef tree_deserialize(self, tree_ser):
+        """Given a tree_ser, gives back a tree
+
+        Args:
+            tree_ser: Tree of the form (recursive)
+                (func_ser, left_tree(false), right_tree(true), metadata)
+                until the leaf nodes which are (prob array, )
+            make_feature_func: 
+
+        Returns:
+            Same structure except func_ser is converted to func using
+            make_feature_func.
+        """
+        if len(tree_ser) != 4:
+            return tree_ser
+        return (self.make_feature_func(tree_ser[0]),
+                self.tree_deserialize(tree_ser[1]),
+                self.tree_deserialize(tree_ser[2]),
+                tree_ser[3])
+
+                
+    cdef inline int depth_samp(self, int *depth_p, np.ndarray[np.float64_t, ndim=1] x):
+        cdef np.ndarray y = np.array(x, dtype=np.int32)
+        if not (0 <= y[0] < 480 and 0 <= y[1] < 640):
+            return self.big_number
+        cdef int d = depth_p[y[0] * 640 + y[1]]
+        if d > self.big_number:
+            return self.big_number
+        return d
+
+    cdef inline int func(self, int *depth_p, np.ndarray[np.int32_t, ndim=1] x,
+                          np.ndarray[np.float64_t, ndim=1] u, np.ndarray[np.float64_t, ndim=1] v, double t):
+        d_x_inv = 1. / self.depth_samp(depth_p, x)
+        return (self.depth_samp(depth_p, x + u * d_x_inv) -
+                self.depth_samp(depth_p, x + v * d_x_inv)) >= t
+
+
+    cpdef predict(self, np.ndarray[np.int16_t, ndim=2] depth_image):
+        cdef np.ndarray depth = np.array(depth_image.ravel(), dtype=np.int32)
+        cdef int *depth_p = <int *>depth.data
+        cdef int i
+        cdef int j
+        cdef np.ndarray x
+        cdef np.ndarray out = np.zeros((480, 640), dtype=np.int32)
+        cdef np.ndarray u
+        cdef np.ndarray v
+        cdef double t
+        for x in self.depth_points:
+            probs = []
+            for cur_tree in self.trees:
+                while len(cur_tree) == 4:
+                    u, v, t = cur_tree[0]
+                    if self.func(depth_p, x, u, v, t):
+                        cur_tree = cur_tree[2]
+                    else:
+                        cur_tree = cur_tree[1]
+                probs.append(cur_tree[0])
+            out[x[0], x[1]] = np.argmax(np.sum(probs))
         return out
