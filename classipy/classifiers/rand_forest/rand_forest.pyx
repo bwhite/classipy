@@ -441,4 +441,4 @@ cdef class FastClassifier(object):
         #void depth_predict(uint16_t *depth, double *out_prob, uint16_t *out_ind, int32_t *trees, int32_t *links, double *leaves,
         #           double *u, double *v, int *t, int num_trees, int num_nodes, int num_leaves, int num_classes);
         depth_predict(<np.uint16_t *>depth.data, <double *>out_prob.data, <np.uint16_t *>out_ind.data, <np.int32_t *>self.trees.data, <np.int32_t *>self.links.data, <double *>self.leaves.data, <double *>self.u.data, <double *>self.v.data, <np.int32_t *>self.t.data, self.num_trees, self.num_nodes, self.num_leaves, self.num_classes)
-        return out_ind, out_prob
+        return out_ind.reshape((480, 640)), out_prob.reshape((480, 640))
