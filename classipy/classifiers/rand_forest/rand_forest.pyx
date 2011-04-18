@@ -32,6 +32,8 @@ import cPickle as pickle
 cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
     double fast_entropy(double *hist, int hist_size)
+    void depth_predict(np.uint16_t *depth, double *out_prob, np.uint16_t *out_ind, np.int32_t *trees, np.int32_t *links, double *leaves,
+                   double *u, double *v, np.int32_t *t, int num_trees, int num_nodes, int num_leaves, int num_classes)
 
 
 cdef class RandomForestClassifier(object):
@@ -355,8 +357,6 @@ cdef class RandomForestClassifier(object):
 
 # NOTE: These are just to simplify building, they will be moved later
 cdef class FastClassifier(object):
-    cdef object depth_points
-    cdef int big_number
     # Below are used for updating the trees
     cdef int node_counter
     cdef int leaf_counter
@@ -372,11 +372,13 @@ cdef class FastClassifier(object):
     cdef np.ndarray t  # [nodes] for all nodes
     cdef np.ndarray leaves  # [leaves, num_classes]
     cdef np.ndarray links  # [nodes, 2] false/true paths
+    cdef int num_trees
+    cdef int num_nodes
+    cdef int num_leaves
+    cdef int num_classes
 
     def __init__(self, trees_ser):
         self.update_trees(trees_ser)
-        self.depth_points = [np.array([x, y], dtype=np.int32) for x in range(480) for y in range(640)]
-        self.big_number = 2**11 - 1  # TODO Tweak
 
     cdef make_feature_func(self, feat_str):
         data = pickle.loads(feat_str)
@@ -393,11 +395,15 @@ cdef class FastClassifier(object):
         self.temp_links = []
         self.trees = np.array([self.tree_deserialize(x)
                                for x in trees_ser], dtype=np.int32)
-        self.leaves = np.array(self.temp_leaves, dtype=np.int32)
-        self.links = np.array(self.temp_links, dtype=np.int32)
-        self.u = np.array(self.temp_u, dtype=np.float64)
-        self.v = np.array(self.temp_v, dtype=np.float64)
-        self.t = np.array(self.temp_t, dtype=np.float64)
+        self.leaves = np.array(self.temp_leaves, dtype=np.int32).ravel()
+        self.links = np.array(self.temp_links, dtype=np.int32).ravel()
+        self.u = np.array(self.temp_u, dtype=np.float64).ravel()
+        self.v = np.array(self.temp_v, dtype=np.float64).ravel()
+        self.t = np.array(self.temp_t, dtype=np.int32)
+        self.num_trees = len(self.trees)
+        self.num_nodes = len(self.temp_u)
+        self.num_leaves = len(self.temp_leaves)
+        self.num_classes = len(self.temp_leaves[0])
 
     cpdef tree_deserialize(self, tree_ser):
         """Given a tree_ser, gives back a tree
@@ -427,37 +433,12 @@ cdef class FastClassifier(object):
                                 self.tree_deserialize(tree_ser[2])])
         return val
 
-    cdef inline int depth_samp(self, int *depth_p, np.ndarray[np.int32_t, ndim=1] x):
-        cdef np.ndarray y = np.array(x, dtype=np.int32)
-        if not (0 <= y[0] < 480 and 0 <= y[1] < 640):
-            return self.big_number
-        cdef int d = depth_p[y[0] * 640 + y[1]]
-        if d > self.big_number:
-            return self.big_number
-        return d
-
-    cdef inline int func(self, int *depth_p, np.ndarray[np.int32_t, ndim=1] x,
-                          np.ndarray[np.float64_t, ndim=1] u, np.ndarray[np.float64_t, ndim=1] v, double t):
-        d_x_inv = 1. / self.depth_samp(depth_p, x)
-        return (self.depth_samp(depth_p, np.array(x + u * d_x_inv, dtype=np.int32)) -
-                self.depth_samp(depth_p, np.array(x + v * d_x_inv, dtype=np.int32))) >= t
-
-
-    cpdef predict(self, np.ndarray[np.uint16_t, ndim=2] depth_image):
-        cdef np.ndarray depth = np.array(depth_image.ravel(), dtype=np.int32)
-        cdef int *depth_p = <int *>depth.data
-        cdef int i
-        cdef int j
-        cdef np.ndarray x
-        cdef np.ndarray out = np.zeros((480, 640), dtype=np.int32)
-        for x in self.depth_points[:100]:
-            probs = []
-            for cur_node in self.trees:
-                while cur_node >= 0:
-                    cur_node = self.links[cur_node][self.func(depth_p, x,
-                                                              self.u[cur_node],
-                                                              self.v[cur_node],
-                                                              self.t[cur_node])]
-                probs.append(self.leaves[-cur_node + 1])
-            out[x[0], x[1]] = np.argmax(np.sum(probs))
-        return out
+    def predict(self, np.ndarray[np.uint16_t, ndim=2] depth_image):
+        cdef np.ndarray depth = depth_image.ravel()
+        cdef np.ndarray out_ind = np.zeros(depth_image.size, dtype=np.uint16)
+        cdef np.ndarray out_prob = np.zeros(depth_image.size, dtype=np.float64)
+        print('Predicting')
+        #void depth_predict(uint16_t *depth, double *out_prob, uint16_t *out_ind, int32_t *trees, int32_t *links, double *leaves,
+        #           double *u, double *v, int *t, int num_trees, int num_nodes, int num_leaves, int num_classes);
+        depth_predict(<np.uint16_t *>depth.data, <double *>out_prob.data, <np.uint16_t *>out_ind.data, <np.int32_t *>self.trees.data, <np.int32_t *>self.links.data, <double *>self.leaves.data, <double *>self.u.data, <double *>self.v.data, <np.int32_t *>self.t.data, self.num_trees, self.num_nodes, self.num_leaves, self.num_classes)
+        return out_ind, out_prob

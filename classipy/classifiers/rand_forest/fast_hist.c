@@ -30,15 +30,14 @@ inline int depth_samp(uint16_t *depth, int i, int j) {
     return BIGNUM;
 }
 
-inline int depth_func(uint16_t *depth, int i, int j, double uy, double ux, double vy, double vx, int t) {
+inline int depth_func(uint16_t *depth, int i, int j, double uy, double ux, double vy, double vx, int32_t t) {
     double d_x_inv = 1. / depth_samp(depth, i, j);
     return (depth_samp(depth, i + uy * d_x_inv, j + ux * d_x_inv) -
             depth_samp(depth, i + vy * d_x_inv, j + vx * d_x_inv)) >= t;
 }
 
-// TODO Change t to an int
-void depth_predict(uint16_t *depth, uint16_t *out_prob, uint16_t *out_ind, int32_t *trees, int32_t *links, double *leaves,
-                   double *u, double *v, int *t, int num_trees, int num_nodes, int num_leaves, int num_classes) {
+void depth_predict(uint16_t *depth, double *out_prob, uint16_t *out_ind, int32_t *trees, int32_t *links, double *leaves,
+                   double *u, double *v, int32_t *t, int num_trees, int num_nodes, int num_leaves, int num_classes) {
     int i, j, k, l, m;
     double *prob_sum = malloc(sizeof *prob_sum * num_classes);
     double max_prob;
@@ -46,7 +45,8 @@ void depth_predict(uint16_t *depth, uint16_t *out_prob, uint16_t *out_ind, int32
     for (i = 0; i < HEIGHT; ++i)
         for (j = 0; j < WIDTH; ++j) {
             memset(prob_sum, 0, sizeof *prob_sum * num_classes);
-            for (l = k = 0; k < num_trees; ++k) {
+            for (k = 0; k < num_trees; ++k) {
+                l = trees[k];
                 while (l >= 0)
                     l = links[2 * l + depth_func(depth, i, j, u[2 * l], u[2 * l + 1],
                                                  v[2 * l], v[2 * l + 1], t[l])];
@@ -64,4 +64,5 @@ void depth_predict(uint16_t *depth, uint16_t *out_prob, uint16_t *out_ind, int32
             out_ind[WIDTH * i + j] = max_prob_ind;
             out_prob[WIDTH * i + j] = max_prob;
         }
+    free(prob_sum);
 }
