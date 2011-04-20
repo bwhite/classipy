@@ -396,7 +396,8 @@ cdef class FastClassifier(object):
         self.trees = np.array([self.tree_deserialize(x)
                                for x in trees_ser], dtype=np.int32)
         self.leaves = np.array(self.temp_leaves, dtype=np.float64).ravel()
-        self.links = np.array(self.temp_links, dtype=np.int32).ravel()
+        self.temp_links.sort()
+        self.links = np.array([x[1] for x in self.temp_links], dtype=np.int32).ravel()
         self.u = np.array(self.temp_u, dtype=np.float64).ravel()
         self.v = np.array(self.temp_v, dtype=np.float64).ravel()
         self.t = np.array(self.temp_t, dtype=np.int32)
@@ -404,6 +405,19 @@ cdef class FastClassifier(object):
         self.num_nodes = len(self.temp_u)
         self.num_leaves = len(self.temp_leaves)
         self.num_classes = len(self.temp_leaves[0])
+        print('Temp: Links[%s]\nU[%s]\nV[%s]\nT[%s]' % (self.temp_links, self.temp_u, self.temp_v, self.temp_t))
+        print('Trees[%s]\nLinks[%s]\nLeaves[%s]\nU[%s]\nV[%s]\nT[%s]\nnum_trees[%s]\nnum_nodes[%s]\nnum_leaves[%s]\nnum_classes[%s]' % (self.trees,
+                                                                                                                                        self.links,
+                                                                                                                                        self.leaves,
+                                                                                                                                        self.u,
+                                                                                                                                        self.v,
+                                                                                                                                        self.t,
+                                                                                                                                        self.num_trees,
+                                                                                                                                        self.num_nodes,
+                                                                                                                                        self.num_leaves,
+                                                                                                                                        self.num_classes))
+        assert self.num_leaves == self.leaf_counter
+        assert self.num_nodes == len(self.temp_v) == len(self.temp_t)
 
     cpdef tree_deserialize(self, tree_ser):
         """Given a tree_ser, gives back a tree
@@ -430,14 +444,14 @@ cdef class FastClassifier(object):
         self.temp_u.append(u)
         self.temp_v.append(v)
         self.temp_t.append(t)
-        self.temp_links.append([self.tree_deserialize(tree_ser[1]),
-                                self.tree_deserialize(tree_ser[2])])
+        self.temp_links.append((val, [self.tree_deserialize(tree_ser[1]),
+                                      self.tree_deserialize(tree_ser[2])]))
         return val
 
     def predict(self, np.ndarray[np.uint16_t, ndim=2] depth_image):
         cdef np.ndarray depth = depth_image.ravel()
-        cdef np.ndarray out_ind = np.zeros(depth_image.size, dtype=np.uint8)
-        cdef np.ndarray out_prob = np.zeros(depth_image.size, dtype=np.float64)
+        cdef np.ndarray out_ind = np.zeros(depth.size, dtype=np.uint8)
+        cdef np.ndarray out_prob = np.zeros(depth.size, dtype=np.float64)
         print('Predicting')
         depth_predict(<np.uint16_t *>depth.data, <double *>out_prob.data, <np.uint8_t *>out_ind.data, <np.int32_t *>self.trees.data, <np.int32_t *>self.links.data, <double *>self.leaves.data, <double *>self.u.data, <double *>self.v.data, <np.int32_t *>self.t.data, self.num_trees, self.num_nodes, self.num_leaves, self.num_classes)
         return out_ind.reshape((480, 640)), out_prob.reshape((480, 640))

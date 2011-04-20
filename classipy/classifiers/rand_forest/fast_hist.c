@@ -26,8 +26,8 @@ double fast_entropy(const double const *hist, int hist_size) {
 
 inline int depth_samp(uint16_t *depth, int i, int j) {
     if (BOUNDS(i, j))
-        return CLAMP(depth[WIDTH * i + j]);
-    return BIGNUM;
+        return (int)CLAMP(depth[WIDTH * i + j]);
+    return (int)BIGNUM;
 }
 
 inline int depth_func(uint16_t *depth, int i, int j, double uy, double ux, double vy, double vx, int32_t t) {
