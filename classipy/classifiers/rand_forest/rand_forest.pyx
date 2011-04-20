@@ -357,6 +357,7 @@ cdef class RandomForestClassifier(object):
 
 # NOTE: These are just to simplify building, they will be moved later
 cdef class FastClassifier(object):
+    cdef public object trees_ser
     # Below are used for updating the trees
     cdef int node_counter
     cdef int leaf_counter
@@ -378,6 +379,7 @@ cdef class FastClassifier(object):
     cdef int num_classes
 
     def __init__(self, trees_ser):
+        self.trees_ser = trees_ser
         self.update_trees(trees_ser)
 
     cdef make_feature_func(self, feat_str):
