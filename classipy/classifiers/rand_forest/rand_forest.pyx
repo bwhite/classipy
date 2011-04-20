@@ -15,8 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Random Forest Classifier
-See: http://research.microsoft.com/pubs/145347/BodyPartRecognition.pdf
-and: http://cvlab.epfl.ch/~lepetit/papers/lepetit_cvpr05.pdf
+http://cvlab.epfl.ch/~lepetit/papers/lepetit_cvpr05.pdf
 """
 
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
@@ -32,9 +31,6 @@ import cPickle as pickle
 cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
     double fast_entropy(double *hist, int hist_size)
-    void depth_predict(np.uint16_t *depth, double *out_prob, np.uint8_t *out_ind, np.int32_t *trees, np.int32_t *links, double *leaves,
-                   double *u, double *v, np.int32_t *t, int num_trees, int num_nodes, int num_leaves, int num_classes)
-
 
 cdef class RandomForestClassifier(object):
     cdef public object make_feature_func
@@ -353,107 +349,3 @@ cdef class RandomForestClassifier(object):
                 self.tree_deserialize(tree_ser[1]),
                 self.tree_deserialize(tree_ser[2]),
                 tree_ser[3])
-
-
-# NOTE: These are just to simplify building, they will be moved later
-cdef class FastClassifier(object):
-    cdef public object trees_ser
-    # Below are used for updating the trees
-    cdef int node_counter
-    cdef int leaf_counter
-    cdef object temp_u
-    cdef object temp_v
-    cdef object temp_t
-    cdef object temp_leaves
-    cdef object temp_links
-    # Below are used for storing the trees
-    cdef np.ndarray trees # [trees]
-    cdef np.ndarray u  # [nodes, 2] y/x vals
-    cdef np.ndarray v  # [nodes, 2]  y/x vals
-    cdef np.ndarray t  # [nodes] for all nodes
-    cdef np.ndarray leaves  # [leaves, num_classes]
-    cdef np.ndarray links  # [nodes, 2] false/true paths
-    cdef int num_trees
-    cdef int num_nodes
-    cdef int num_leaves
-    cdef int num_classes
-
-    def __init__(self, trees_ser):
-        self.trees_ser = trees_ser
-        self.update_trees(trees_ser)
-
-    cdef make_feature_func(self, feat_str):
-        data = pickle.loads(feat_str)
-        u = data['u']
-        v = data['v']
-        t = data['t']
-        return u, v, t
-
-    cpdef update_trees(self, trees_ser):
-        self.node_counter = 0
-        self.leaf_counter = 0
-        self.temp_u, self.temp_v, self.temp_t = [], [], []
-        self.temp_leaves = []
-        self.temp_links = []
-        self.trees = np.array([self.tree_deserialize(x)
-                               for x in trees_ser], dtype=np.int32)
-        self.leaves = np.array(self.temp_leaves, dtype=np.float64).ravel()
-        self.temp_links.sort()
-        self.links = np.array([x[1] for x in self.temp_links], dtype=np.int32).ravel()
-        self.u = np.array(self.temp_u, dtype=np.float64).ravel()
-        self.v = np.array(self.temp_v, dtype=np.float64).ravel()
-        self.t = np.array(self.temp_t, dtype=np.int32)
-        self.num_trees = len(self.trees)
-        self.num_nodes = len(self.temp_u)
-        self.num_leaves = len(self.temp_leaves)
-        self.num_classes = len(self.temp_leaves[0])
-        print('Temp: Links[%s]\nU[%s]\nV[%s]\nT[%s]' % (self.temp_links, self.temp_u, self.temp_v, self.temp_t))
-        print('Trees[%s]\nLinks[%s]\nLeaves[%s]\nU[%s]\nV[%s]\nT[%s]\nnum_trees[%s]\nnum_nodes[%s]\nnum_leaves[%s]\nnum_classes[%s]' % (self.trees,
-                                                                                                                                        self.links,
-                                                                                                                                        self.leaves,
-                                                                                                                                        self.u,
-                                                                                                                                        self.v,
-                                                                                                                                        self.t,
-                                                                                                                                        self.num_trees,
-                                                                                                                                        self.num_nodes,
-                                                                                                                                        self.num_leaves,
-                                                                                                                                        self.num_classes))
-        assert self.num_leaves == self.leaf_counter
-        assert self.num_nodes == len(self.temp_v) == len(self.temp_t)
-
-    cpdef tree_deserialize(self, tree_ser):
-        """Given a tree_ser, gives back a tree
-
-        Args:
-            tree_ser: Tree of the form (recursive)
-                (func_ser, left_tree(false), right_tree(true), metadata)
-                until the leaf nodes which are (prob array, )
-            make_feature_func: 
-
-        Returns:
-            Same structure except func_ser is converted to func using
-            make_feature_func.
-        """
-        if len(tree_ser) != 4:
-            val = self.leaf_counter
-            self.leaf_counter += 1
-            self.temp_leaves.append(tree_ser[0])
-            print('Leaf[%d] = %s' % (val, self.temp_leaves[-1]))
-            return -val - 1
-        val = self.node_counter
-        self.node_counter += 1
-        u, v, t = self.make_feature_func(tree_ser[0])
-        self.temp_u.append(u)
-        self.temp_v.append(v)
-        self.temp_t.append(t)
-        self.temp_links.append((val, [self.tree_deserialize(tree_ser[1]),
-                                      self.tree_deserialize(tree_ser[2])]))
-        return val
-
-    def predict(self, np.ndarray[np.uint16_t, ndim=2] depth_image):
-        cdef np.ndarray depth = depth_image.ravel()
-        cdef np.ndarray out_ind = np.zeros(depth.size, dtype=np.uint8)
-        cdef np.ndarray out_prob = np.zeros(depth.size, dtype=np.float64)
-        print('Predicting')
-        depth_predict(<np.uint16_t *>depth.data, <double *>out_prob.data, <np.uint8_t *>out_ind.data, <np.int32_t *>self.trees.data, <np.int32_t *>self.links.data, <double *>self.leaves.data, <double *>self.u.data, <double *>self.v.data, <np.int32_t *>self.t.data, self.num_trees, self.num_nodes, self.num_leaves, self.num_classes)
-        return out_ind.reshape((480, 640)), out_prob.reshape((480, 640))

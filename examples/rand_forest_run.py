@@ -117,13 +117,13 @@ def data_generator(num_points):
 
 
 def main():
-    label_values = data_generator(50000)
+    label_values = data_generator(5000)
     dims = [(0., 1.), (0., 1.)]
     rfc = classipy.RandomForestClassifier(make_feature_func,
                                           lambda : gen_feature(dims),
                                           num_trees=1,
                                           num_procs=8,
-                                          num_feat=1000)
+                                          num_feat=100)
     rfc.train(label_values)
     # Test pickle
     print('Pickling')
