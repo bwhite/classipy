@@ -121,8 +121,9 @@ def main():
     dims = [(0., 1.), (0., 1.)]
     rfc = classipy.RandomForestClassifier(make_feature_func,
                                           lambda : gen_feature(dims),
-                                          num_trees=3,
-                                          num_procs=8)
+                                          num_trees=1,
+                                          num_procs=8,
+                                          num_feat=1000)
     rfc.train(label_values)
     # Test pickle
     print('Pickling')
