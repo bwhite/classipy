@@ -23,8 +23,6 @@ __license__ = 'GPL V3'
 
 import numpy as np
 cimport numpy as np
-import multiprocessing
-import Queue
 import operator
 import cPickle as pickle
 
@@ -206,38 +204,81 @@ cdef class RandomForestClassifier(object):
         pr_r = 1. - pr_l
         return h_q - pr_l * h_ql - pr_r * h_qr
 
-    cpdef train_find_max_feature(self, labels, values, num_feat, queue=None):
+    cdef make_features(self, seed):
+        """Generate a list of length self.num_feat features
+
+        Args:
+            seed: An integer seed given to np.random.seed, if 0 then don't seed
+
+        Returns:
+            List of (feat_num, feat_ser, feat) in order of increasing feat_num
         """
+        if not seed:
+            np.random.seed(seed)
+        out = []
+        for feat_num in range(self.num_feat):
+            feat_ser = self.gen_feature()
+            feat = self.make_feature_func(feat_ser)
+            out.append((feat_ser, feat))
+        return out
+
+    cpdef train_map_hists(self, labels, values, seed=0):
+        """Compute the histograms for a series of labels/values
 
         Args:
             labels: Np array of labels
             values: List of opaque values (given to the feature)
-            num_feat: Number of features to compute
-            queue: If present then the return value should be put here (default: None)
+            seed: An integer seed given to np.random.seed, if 0 then don't seed
+                (default is 0)
 
         Returns:
-            info_gain, serialized function
+            Tuple of (qls, qrs, func_sers)
+            where qls/qrs is a num_feat X num_class array and
+            func_sers is length num_feat.
         """
-        cdef float max_info_gain = -float('inf')
-        max_info_gain_func = None
-        max_info_gain_func_ser = None
-        for feat_num in range(num_feat):
-            func_ser = self.gen_feature()
-            func = self.make_feature_func(func_ser)
+        qls, qrs, func_sers = [], [], []
+        for func_ser, func in self.make_features(seed):
             ql, qr = self.partition_labels(labels, values, func)
-            info_gain = self.information_gain(self.histogram(ql),
-                                              self.histogram(qr))
-            if self.feature_to_str:
-                print('Feat[%s] InfoGain[%f]' % (self.feature_to_str(func_ser),
-                                                 info_gain))
-            if info_gain > max_info_gain:
-                max_info_gain = info_gain
-                max_info_gain_func_ser = func_ser
-        out = max_info_gain, max_info_gain_func_ser
-        if queue:
-            queue.put(out)
-        return out
+            qls.append(self.histogram(ql))
+            qrs.append(self.histogram(qr))
+            func_sers.append(func_ser)
+        return np.vstack(qls), np.vstack(qrs), func_sers
 
+    cpdef train_combine_hists(self, qls_qrs_func_sers_iter):
+        """Sum the intermediate results among splits
+
+        Args:
+            qls_qrs_func_sers_iter: Iterator of num_splits elements of
+                (qls, qrs, func_sers) where
+                qls/qrs is num_feat X num_class array
+                func_sers is length num_feat
+
+        Returns:
+            Tuple of (qls, qrs, func_sers) with qls/qrs of shape
+                num_feat x num_class_array and func_sers length of num_feat
+        """
+        qlss, qrss, func_serss = zip(*list(qls_qrs_func_sers_iter))
+        # Verify that all funcs are the same
+        for func_sers in func_serss[1:]:
+            assert func_serss[0] == func_sers
+        cdef np.ndarray total_qls = np.sum(qlss, 0)  # num_feat x num_class_array
+        cdef np.ndarray total_qrs = np.sum(qrss, 0)  # num_feat x num_class_array
+        return total_qls, total_qrs, func_serss[0]
+
+    cpdef train_reduce_info(self, qls, qrs, func_sers):
+        """
+        Args:
+            qls: Left histogram of shape num_feat x num_class_array
+            qrs: Right histogram of shape num_feat x num_class_array
+            func_sers: List of serialized functions
+
+        Returns:
+            Tuple of (info_gain, func_ser)
+        """
+        info_gains = [self.information_gain(ql, qr)
+                      for ql, qr in zip(qls, qrs)]
+        max_ind = np.argmax(info_gains)
+        return info_gains[max_ind], func_sers[max_ind]
 
     cdef train_find_feature(self, labels, values, tree_depth):
         """Recursively and greedily train the tree
@@ -254,28 +295,19 @@ cdef class RandomForestClassifier(object):
         if tree_depth < 0:
             return (self.normalized_histogram(labels),)
         cdef float max_info_gain = -float('inf')
-        if self.num_procs <= 1 or len(labels) < 10:
-            max_info_gain, max_info_gain_func_ser = self.train_find_max_feature(labels, values, self.num_feat)
-        else:
-            queue = multiprocessing.Queue()
-            ps = [multiprocessing.Process(target=self.train_find_max_feature,
-                                          args=(labels, values, self.num_feat / self.num_procs, queue))
-                  for x in range(self.num_procs)]
-            for p in ps: p.start()
-            max_info_gain, max_info_gain_func_ser = max([queue.get() for p in ps], key=operator.itemgetter(0))
-            for p in ps: p.join()
-        if max_info_gain <= self.min_info:
+        info_gain, func_ser = self.train_reduce_info(*self.train_map_hists(labels, values))
+        if info_gain <= self.min_info:
             return (self.normalized_histogram(labels),)
         if self.feature_to_str:
-            print('MaxInfo: Feat[%s] InfoGain[%f]' % (self.feature_to_str(max_info_gain_func_ser),
-                                                      max_info_gain))
+            print('MaxInfo: Feat[%s] InfoGain[%f]' % (self.feature_to_str(func_ser),
+                                                      info_gain))
         tree_depth = tree_depth - 1
-        max_info_gain_func = self.make_feature_func(max_info_gain_func_ser)
-        ql_labels, ql_values, qr_labels, qr_values = self.partition_label_values(labels, values, max_info_gain_func)
-        return (max_info_gain_func_ser,
+        func = self.make_feature_func(func_ser)
+        ql_labels, ql_values, qr_labels, qr_values = self.partition_label_values(labels, values, func)
+        return (func_ser,
                 self.train_find_feature(ql_labels, ql_values, tree_depth),
                 self.train_find_feature(qr_labels, qr_values, tree_depth),
-                {'info_gain': max_info_gain})
+                {'info_gain': info_gain})
 
     def train(self, label_values):
         """Train the classifier
