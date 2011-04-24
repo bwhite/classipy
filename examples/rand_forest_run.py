@@ -116,13 +116,13 @@ def data_generator(num_points):
     return out
 
 
-def train():
-    label_values = data_generator(50000)
+def train(num_procs=8):
+    label_values = data_generator(5000)
     dims = [(0., 1.), (0., 1.)]
     rfc = classipy.RandomForestClassifier(make_feature_func,
                                           lambda : gen_feature(dims),
                                           num_trees=1,
-                                          num_procs=8,
+                                          num_procs=num_procs,
                                           num_feat=100)
     rfc.train(label_values)
     return rfc, label_values, dims
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         prof()
     elif sys.argv[1] == 'time_train':
         from timeit import Timer
-        t = Timer("train()", "from __main__ import train")
-        print t.timeit(number=10)
+        t = Timer("train(num_procs=1)", "from __main__ import train")
+        print t.timeit(number=20)
     else:
         print(__doc__)
