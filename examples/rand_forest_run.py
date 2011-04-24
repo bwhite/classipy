@@ -116,8 +116,8 @@ def data_generator(num_points):
     return out
 
 
-def main():
-    label_values = data_generator(5000)
+def train():
+    label_values = data_generator(50000)
     dims = [(0., 1.), (0., 1.)]
     rfc = classipy.RandomForestClassifier(make_feature_func,
                                           lambda : gen_feature(dims),
@@ -125,6 +125,11 @@ def main():
                                           num_procs=8,
                                           num_feat=100)
     rfc.train(label_values)
+    return rfc, label_values, dims
+
+
+def main():
+    rfc, label_values, dims = train()
     # Test pickle
     print('Pickling')
     rfc = classipy.RandomForestClassifier.loads(rfc.dumps(), make_feature_func,
@@ -156,5 +161,9 @@ if __name__ == '__main__':
         main()
     elif sys.argv[1] == 'profile':
         prof()
+    elif sys.argv[1] == 'time_train':
+        from timeit import Timer
+        t = Timer("train()", "from __main__ import train")
+        print t.timeit(number=10)
     else:
         print(__doc__)
