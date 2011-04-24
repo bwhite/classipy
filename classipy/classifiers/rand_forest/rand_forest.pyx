@@ -138,53 +138,71 @@ cdef class RandomForestClassifier(object):
                 ql_val.append(value)
         return labels[ql_ind], ql_val, labels[qr_ind], qr_val
 
-    cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(self,np.ndarray[np.int32_t, ndim=1] labels):
-        """Computes a normalized histogram of labels
+    cdef inline np.ndarray[np.int32_t, ndim=1] histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
+        """Computes a histogram of labels
 
         Args:
             labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
 
         Returns:
-            Ndarray with indexes as labels and values as prob.
+            Ndarray of length 'num_classes' with indexes as labels and
+            values as counts
         """
-        if not labels.size:  # Nothing provided
-            return
         # We are touching pointers here, so check the input before this
         # if one of the labels goes out of bounds there will be a problem.
         cdef np.ndarray out = np.zeros(self.num_classes, dtype=np.int32)
+        if not labels.size:
+            return out
         cdef int *out_p = <int *>out.data
         cdef int *labels_p = <int *>labels.data
         cdef int labels_dim = labels.shape[0]
         fast_histogram(labels_p, labels_dim, out_p)
-        norm = 1. / len(labels)
-        return norm * out
+        return out
 
-    cdef double entropy(self, np.ndarray[np.int32_t, ndim=1] q):
+    cdef inline np.ndarray[np.float64_t, ndim=1] normalized_histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
+        """Computes a histogram of labels
+
+        Args:
+            labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
+
+        Returns:
+            Ndarray of length 'num_classes' with indexes as labels and
+            values as probs
+        """
+        cdef np.ndarray out = self.histogram(labels)
+        cdef double scale = 1./ np.sum(out)
+        return scale * out
+
+    cdef inline double entropy(self, np.ndarray[np.float64_t, ndim=1] q):
         """Shannon Entropy
 
         Args:
-            q: Np array of integral labels
+            q: Ndarray of length 'num_classes' with indexes as labels and
+                values as probabilities
 
         Returns:
             Entropy in 'bits'
         """
-        cdef np.ndarray hist = self.normalized_histogram(q)
-        if hist == None:
-            return 0.
-        return fast_entropy(<double*>hist.data, <int>hist.shape[0])
+        return fast_entropy(<double*>q.data, <int>q.shape[0])
 
-    cdef double information_gain(self, np.ndarray[np.int32_t, ndim=1] ql,
-                                 np.ndarray[np.int32_t, ndim=1] qr):
+    cdef inline double information_gain(self, np.ndarray[np.int32_t, ndim=1] ql,
+                                        np.ndarray[np.int32_t, ndim=1] qr):
         """Compute the information gain of the split
 
         Args:
-            ql: Np array of labels
-            qr: Np array of labels
+            ql: Ndarray of length 'num_classes' with indexes as labels and
+                values as counts
+            qr: Ndarray of length 'num_classes' with indexes as labels and
+                values as counts
         """
-        h_q = self.entropy(np.concatenate((ql, qr)))
-        h_ql = self.entropy(ql)
-        h_qr = self.entropy(qr)
-        pr_l = len(ql) / float(len(ql) + len(qr))
+        cdef double sum_l = np.sum(ql)  # NOTE: Possible overflow opportunity
+        cdef double sum_r = np.sum(qr)
+        if not sum_l or not sum_r:
+            return 0.
+        h_q = self.entropy((ql + qr) / (sum_l + sum_r))
+        h_ql = self.entropy(ql / sum_l)
+        h_qr = self.entropy(qr / sum_r)
+        pr_l = sum_l / (sum_l + sum_r)
         pr_r = 1. - pr_l
         return h_q - pr_l * h_ql - pr_r * h_qr
 
@@ -207,8 +225,8 @@ cdef class RandomForestClassifier(object):
             func_ser = self.gen_feature()
             func = self.make_feature_func(func_ser)
             ql, qr = self.partition_labels(labels, values, func)
-            info_gain = self.information_gain(ql,
-                                              qr)
+            info_gain = self.information_gain(self.histogram(ql),
+                                              self.histogram(qr))
             if self.feature_to_str:
                 print('Feat[%s] InfoGain[%f]' % (self.feature_to_str(func_ser),
                                                  info_gain))
