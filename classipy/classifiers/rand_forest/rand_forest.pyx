@@ -138,7 +138,7 @@ cdef class RandomForestClassifier(object):
                 ql_val.append(value)
         return labels[ql_ind], ql_val, labels[qr_ind], qr_val
 
-    cdef inline np.ndarray[np.int32_t, ndim=1] histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
+    cdef np.ndarray[np.int32_t, ndim=1] histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
         """Computes a histogram of labels
 
         Args:
@@ -159,7 +159,7 @@ cdef class RandomForestClassifier(object):
         fast_histogram(labels_p, labels_dim, out_p)
         return out
 
-    cdef inline np.ndarray[np.float64_t, ndim=1] normalized_histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
+    cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(self, np.ndarray[np.int32_t, ndim=1] labels):
         """Computes a histogram of labels
 
         Args:
@@ -173,7 +173,7 @@ cdef class RandomForestClassifier(object):
         cdef double scale = 1./ np.sum(out)
         return scale * out
 
-    cdef inline double entropy(self, np.ndarray[np.float64_t, ndim=1] q):
+    cdef double entropy(self, np.ndarray[np.float64_t, ndim=1] q):
         """Shannon Entropy
 
         Args:
@@ -185,7 +185,7 @@ cdef class RandomForestClassifier(object):
         """
         return fast_entropy(<double*>q.data, <int>q.shape[0])
 
-    cdef inline double information_gain(self, np.ndarray[np.int32_t, ndim=1] ql,
+    cdef double information_gain(self, np.ndarray[np.int32_t, ndim=1] ql,
                                         np.ndarray[np.int32_t, ndim=1] qr):
         """Compute the information gain of the split
 
