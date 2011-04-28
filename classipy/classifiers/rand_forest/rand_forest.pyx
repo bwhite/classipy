@@ -175,8 +175,8 @@ cdef class RandomForestClassifier(object):
         qls, qrs = [], []
         for feat in feats:
             cur_qls, cur_qrs = feat.label_histograms(labels, values, self.num_classes)
-            qls += cur_qls
-            qrs += cur_qrs
+            qls.append(cur_qls)
+            qrs.append(cur_qrs)
         return np.vstack(qls), np.vstack(qrs)
 
     cpdef train_combine_hists(self, qls_qrs_iter):
@@ -465,15 +465,15 @@ cdef class VectorFeature(object):
 
         Returns:
             Tuple of (qls, qrs)
-            qls: List of elements of vecs s.t. func is false
-            qrs: List of elements of vecs s.t. func is true
+            qls: Histograms of left labels with shape (num_thresh, num_classses)
+            qrs: Histograms of right labels with shape (num_thresh, num_classses)
         """
         values = np.asarray(values)
         qls, qrs = [], []
         for x in self(values):
             qls.append(histogram(labels[~x], num_classes))
             qrs.append(histogram(labels[x], num_classes))
-        return qls, qrs
+        return np.vstack(qls), np.vstack(qrs)
 
     def label_values_partition(self, labels, values):
         """Only uses the first row of values, producing 1 partition
