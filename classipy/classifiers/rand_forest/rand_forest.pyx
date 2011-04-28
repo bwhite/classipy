@@ -29,6 +29,7 @@ import random
 
 cdef extern from "fast_hist.h":
     void fast_histogram(int *labels, int labels_size, int *hist)
+    void fast_histogram_weight(int *labels, int *weights, int labels_size, int weight_rows, int num_classes, int *hist)
     double fast_entropy(double *hist, int hist_size)
 
 cdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
@@ -51,6 +52,29 @@ cdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] lab
     cdef int labels_dim = labels.shape[0]
     fast_histogram(labels_p, labels_dim, out_p)
     return out
+
+
+cdef np.ndarray[np.int32_t, ndim=1] histogram_weight(np.ndarray[np.int32_t, ndim=1] labels, np.ndarray[np.int32_t, ndim=2] weights, int num_classes):
+    """Computes a histogram of labels
+
+    Args:
+        labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
+        weights: Ndarray of weights (ints) that signify how much to weight each label
+            each row results in a different histogram.
+
+    Returns:
+        Ndarray of shape (weight_rows x num_classes) with indexes as labels and
+        values as counts
+    """
+    # We are touching pointers here, so check the input before this
+    # if one of the labels goes out of bounds there will be a problem.
+    cdef np.ndarray out = np.zeros(num_classes * weights.shape[0], dtype=np.int32).reshape((weights.shape[0], num_classes))
+    out = np.ascontiguousarray(out)
+    if not labels.size:
+        return out
+    fast_histogram_weight(<int *>labels.data,  <int *>weights.data, labels.shape[0], weights.shape[0], num_classes, <int *>out.data)
+    return out
+
 
 cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
     """Computes a histogram of labels
