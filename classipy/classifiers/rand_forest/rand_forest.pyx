@@ -32,7 +32,7 @@ cdef extern from "fast_hist.h":
     void fast_histogram_weight(int *labels, int *weights, int labels_size, int weight_rows, int num_classes, int *hist)
     double fast_entropy(double *hist, int hist_size)
 
-cdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
+cpdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
     """Computes a histogram of labels
 
     Args:
@@ -54,7 +54,7 @@ cdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] lab
     return out
 
 
-cdef np.ndarray[np.int32_t, ndim=1] histogram_weight(np.ndarray[np.int32_t, ndim=1] labels, np.ndarray[np.int32_t, ndim=2] weights, int num_classes):
+cpdef np.ndarray[np.int32_t, ndim=1] histogram_weight(np.ndarray[np.int32_t, ndim=1] labels, np.ndarray[np.int32_t, ndim=2] weights, int num_classes):
     """Computes a histogram of labels
 
     Args:
@@ -76,7 +76,7 @@ cdef np.ndarray[np.int32_t, ndim=1] histogram_weight(np.ndarray[np.int32_t, ndim
     return out
 
 
-cdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
+cpdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
     """Computes a histogram of labels
 
     Args:
