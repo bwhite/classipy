@@ -61,6 +61,7 @@ def prof():
     cProfile.runctx("main()", globals(), locals(), "Profile.prof")
     s = pstats.Stats("Profile.prof")
     s.strip_dirs().sort_stats("time").print_stats()
+    s.strip_dirs().sort_stats("cum").print_stats()
 
 if __name__ == '__main__':
     if len(sys.argv) < 2 or sys.argv[1] == 'test':

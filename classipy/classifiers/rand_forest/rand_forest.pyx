@@ -1,3 +1,4 @@
+# cython: profile=True
 #!/usr/bin/env python
 # (C) Copyright 2010 Brandyn A. White
 #
@@ -54,7 +55,7 @@ cpdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] la
     return out
 
 
-cpdef np.ndarray[np.int32_t, ndim=1] histogram_weight(np.ndarray[np.int32_t, ndim=1] labels, np.ndarray[np.int32_t, ndim=2] weights, int num_classes):
+cpdef np.ndarray[np.int32_t, ndim=2] histogram_weight(np.ndarray[np.int32_t, ndim=1] labels, np.ndarray[np.int32_t, ndim=2] weights, int num_classes):
     """Computes a histogram of labels
 
     Args:
@@ -155,7 +156,7 @@ cdef class RandomForestClassifier(object):
         Returns:
             List of (feat_ser, feat) in order of increasing feat_num
         """
-        if not seed:
+        if seed:
             np.random.seed(seed)
         return [self.feature_factory.gen_feature()
                 for x in range(self.num_feat)]
@@ -227,13 +228,12 @@ cdef class RandomForestClassifier(object):
         cdef float max_info_gain = -float('inf')
         feats = self.make_features()
         info_gain, feat_ind = self.train_reduce_info(*self.train_map_hists(labels, values, feats))
-        feat = self.feature_factory.select_feature(feats, feat_ind)
+        feat = self.feature_factory.select_feature(feats, feat_ind)        
         feat_ser = feat.dumps()
         if info_gain <= self.min_info:
             return (normalized_histogram(labels, self.num_classes),)
-
-        print('MaxInfo: Feat[%s] InfoGain[%f]' % (feat,
-                                                  info_gain))
+        print('[%d]MaxInfo: Feat[%s] InfoGain[%f]' % (tree_depth, feat,
+                                                      info_gain))
         tree_depth = tree_depth - 1
         ql_labels, ql_values, qr_labels, qr_values = feat.label_values_partition(labels, values)
         return (feat_ser,
@@ -259,7 +259,10 @@ cdef class RandomForestClassifier(object):
             raise ValueError('feature_factory must be set!')
         labels, values = zip(*label_values)
         labels = np.array(labels, dtype=np.int32)
-        values = np.array(values)
+        try:
+            values = np.array(values)
+        except ValueError:
+            pass
         self.num_classes = max(self.num_classes, np.max(labels) + 1)  # Requires we get one sample per class
         assert np.min(labels) >= 0
         assert np.max(labels) < self.num_classes
