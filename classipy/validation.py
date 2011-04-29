@@ -26,7 +26,7 @@ import numpy as np
 
 
 def cross_validation(classifier_class, label_values, num_folds=10,
-                     options=None, converted=False):
+                     options=None, expand_options=False, converted=False):
     """Performs cross validation on a BinaryClassifier.
 
     The same partitions will be produced if random.seed is used before this is
@@ -39,6 +39,8 @@ def cross_validation(classifier_class, label_values, num_folds=10,
         num_folds: Number of partitions to split the data into (default 10).
             If len(label_values) < num_folds, then we use len(label_values)
         options: Options to pass to the classifier
+        expand_options: True then use classifier_class(**options) else use
+            classifier_class(options=options)
         converted: True then the input is in the correct internal format.
 
     Returns:
@@ -57,7 +59,10 @@ def cross_validation(classifier_class, label_values, num_folds=10,
     accuracy_sum = 0.
     for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
-        c = classifier_class(options=options)
+        if expand_options:
+            c = classifier_class(**options)
+        else:
+            c = classifier_class(options=options)
         c.train(train_labels_values, converted=converted)
         out = evaluate(c, folds[test_num], converted=converted)
         accuracy_sum += out['accuracy']
