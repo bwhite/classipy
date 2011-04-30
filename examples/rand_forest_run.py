@@ -31,9 +31,9 @@ def data_generator(num_points):
 
 
 def train():
-    label_values = data_generator(5000)
+    label_values = data_generator(50000)
     dims = [(0., 1.), (0., 1.)]
-    feature_factory = classipy.rand_forest.VectorFeatureFactory(dims, 1)
+    feature_factory = classipy.rand_forest.VectorFeatureFactory(dims, 10)
     rfc = classipy.RandomForestClassifier(feature_factory,
                                           num_feat=100)
     rfc.train(label_values)

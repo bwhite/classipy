@@ -37,7 +37,7 @@ cdef extern from "fast_hist.h":
 include "vector_feature.pyx"
 
 
-cpdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
+cpdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1, mode='c'] labels, int num_classes):
     """Computes a histogram of labels
 
     Args:
@@ -59,7 +59,7 @@ cpdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1] la
     return out
 
 
-cpdef np.ndarray[np.int32_t, ndim=2] histogram_weight(np.ndarray[np.int32_t, ndim=1] labels, np.ndarray[np.int32_t, ndim=2] weights, int num_classes):
+cpdef np.ndarray[np.int32_t, ndim=2, mode='c'] histogram_weight(np.ndarray[np.int32_t, ndim=1, mode='c'] labels, np.ndarray[np.int32_t, ndim=2, mode='c'] weights, int num_classes):
     """Computes a histogram of labels
 
     Args:
@@ -81,7 +81,7 @@ cpdef np.ndarray[np.int32_t, ndim=2] histogram_weight(np.ndarray[np.int32_t, ndi
     return out
 
 
-cpdef np.ndarray[np.float64_t, ndim=1] normalized_histogram(np.ndarray[np.int32_t, ndim=1] labels, int num_classes):
+cpdef np.ndarray[np.float64_t, ndim=1, mode='c'] normalized_histogram(np.ndarray[np.int32_t, ndim=1, mode='c'] labels, int num_classes):
     """Computes a histogram of labels
 
     Args:
@@ -168,7 +168,7 @@ cdef class RandomForestClassifier(object):
         cdef np.ndarray total_qrs = np.sum(qrss, 0)  # num_feat x num_class_array
         return total_qls, total_qrs
 
-    cdef np.ndarray[np.float64_t, ndim=1] entropy(self, np.ndarray[np.float64_t, ndim=2] q):
+    cdef np.ndarray[np.float64_t, ndim=1, mode='c'] entropy(self, np.ndarray[np.float64_t, ndim=2, mode='c'] q):
         """Shannon Entropy
 
         Args:
@@ -180,13 +180,13 @@ cdef class RandomForestClassifier(object):
         """
         cdef int i
         cdef np.ndarray x
-        cdef np.ndarray[np.float64_t, ndim=1] out = np.zeros(q.shape[0])
+        cdef np.ndarray[np.float64_t, ndim=1, mode='c'] out = np.zeros(q.shape[0])
         for i, x in enumerate(q):
             out[i] = fast_entropy(<double*>x.data, <int>x.shape[0])
         return out
 
-    cdef np.ndarray[np.float64_t, ndim=1] information_gain(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
-                                                           np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
+    cdef np.ndarray[np.float64_t, ndim=1, mode='c'] information_gain(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
+                                                                     np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
         """Compute the information gain of the split
 
         Args:
@@ -311,7 +311,12 @@ cdef class RandomForestClassifier(object):
 
         Returns:
             List of (prob, label) descending by probability
+
+        Raises:
+            ValueError: Classifier is not trained
         """
+        if not self.trees:
+            raise ValueError('Classifier must be trained to predict')
         mean_pred = np.mean([self.predict_tree(value, t) for t in self.trees], 0)
         out = [x[::-1] for x in enumerate(mean_pred)]
         out.sort(reverse=True)
