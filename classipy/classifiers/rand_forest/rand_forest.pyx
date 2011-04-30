@@ -292,7 +292,7 @@ cdef class RandomForestClassifier(object):
             return self.predict_tree(value, tree[2])
         return self.predict_tree(value, tree[1])
 
-    def predict(self, value):
+    def predict(self, value, converted=False):
         """Perform classifier prediction using model
 
         Args:
