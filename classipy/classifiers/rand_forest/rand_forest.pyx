@@ -148,10 +148,8 @@ cdef class RandomForestClassifier(object):
         inds = ((sum_l != 0) & (sum_r != 0)).nonzero()[0]
         qls = qls[inds]
         qrs = qrs[inds]
-        sum_l = np.asfarray(sum_l[inds])
-        sum_r = np.asfarray(sum_r[inds])
-        sum_l = sum_l.reshape(sum_l.size, 1)
-        sum_r = sum_r.reshape(sum_r.size, 1)
+        sum_l = np.asfarray(sum_l[inds]).reshape(len(inds), 1)
+        sum_r = np.asfarray(sum_r[inds]).reshape(len(inds), 1)
         cdef np.ndarray qrls_norm = (qls + qrs) / (sum_l + sum_r)
         cdef np.ndarray h_q = self.entropy(qrls_norm)
         cdef np.ndarray h_ql = self.entropy(qls / sum_l)
