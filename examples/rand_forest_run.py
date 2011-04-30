@@ -35,7 +35,7 @@ def train():
     dims = [(0., 1.), (0., 1.)]
     feature_factory = classipy.rand_forest.VectorFeatureFactory(dims, 1)
     rfc = classipy.RandomForestClassifier(feature_factory,
-                                          num_feat=1000)
+                                          num_feat=100)
     rfc.train(label_values)
     return rfc, label_values, dims
 

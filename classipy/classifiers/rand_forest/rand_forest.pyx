@@ -117,48 +117,6 @@ cdef class RandomForestClassifier(object):
         # Derived from args
         self.trees = []
 
-    cdef np.ndarray[np.float64_t, ndim=1] entropy(self, np.ndarray[np.float64_t, ndim=2] q):
-        """Shannon Entropy
-
-        Args:
-            q: Ndarray of shape 'num_features X num_classes' with indexes as labels and
-                values as probabilities
-
-        Returns:
-            np array of entropy in 'bits'
-        """
-        cdef int i
-        cdef np.ndarray x
-        cdef np.ndarray[np.float64_t, ndim=1] out = np.zeros(q.shape[0])
-        for i, x in enumerate(q):
-            out[i] = fast_entropy(<double*>x.data, <int>x.shape[0])
-        return out
-
-    cdef np.ndarray[np.float64_t, ndim=1] information_gain(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
-                                                           np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
-        """Compute the information gain of the split
-
-        Args:
-            qls: Left histogram of shape num_feat x num_class_array
-            qrs: Right histogram of shape num_feat x num_class_array
-        """
-        cdef np.ndarray sum_l = np.sum(qls, 1)  # NOTE: Possible overflow opportunity
-        cdef np.ndarray sum_r = np.sum(qrs, 1)
-        out = np.zeros(sum_l.shape[0])
-        inds = ((sum_l != 0) & (sum_r != 0)).nonzero()[0]
-        qls = qls[inds]
-        qrs = qrs[inds]
-        sum_l = np.asfarray(sum_l[inds]).reshape(len(inds), 1)
-        sum_r = np.asfarray(sum_r[inds]).reshape(len(inds), 1)
-        cdef np.ndarray qrls_norm = (qls + qrs) / (sum_l + sum_r)
-        cdef np.ndarray h_q = self.entropy(qrls_norm)
-        cdef np.ndarray h_ql = self.entropy(qls / sum_l)
-        cdef np.ndarray h_qr = self.entropy(qrs / sum_r)
-        pr_l = sum_l / (sum_l + sum_r)
-        pr_r = 1. - pr_l
-        out[inds] = h_q - pr_l * h_ql - pr_r * h_qr
-        return out
-
     cdef make_features(self, seed=0):
         """Generate a list of features
 
@@ -209,6 +167,48 @@ cdef class RandomForestClassifier(object):
         cdef np.ndarray total_qls = np.sum(qlss, 0)  # num_feat x num_class_array
         cdef np.ndarray total_qrs = np.sum(qrss, 0)  # num_feat x num_class_array
         return total_qls, total_qrs
+
+    cdef np.ndarray[np.float64_t, ndim=1] entropy(self, np.ndarray[np.float64_t, ndim=2] q):
+        """Shannon Entropy
+
+        Args:
+            q: Ndarray of shape 'num_features X num_classes' with indexes as labels and
+                values as probabilities
+
+        Returns:
+            np array of entropy in 'bits'
+        """
+        cdef int i
+        cdef np.ndarray x
+        cdef np.ndarray[np.float64_t, ndim=1] out = np.zeros(q.shape[0])
+        for i, x in enumerate(q):
+            out[i] = fast_entropy(<double*>x.data, <int>x.shape[0])
+        return out
+
+    cdef np.ndarray[np.float64_t, ndim=1] information_gain(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
+                                                           np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
+        """Compute the information gain of the split
+
+        Args:
+            qls: Left histogram of shape num_feat x num_class_array
+            qrs: Right histogram of shape num_feat x num_class_array
+        """
+        cdef np.ndarray sum_l = np.sum(qls, 1)  # NOTE: Possible overflow opportunity
+        cdef np.ndarray sum_r = np.sum(qrs, 1)
+        out = np.zeros(sum_l.shape[0])
+        inds = ((sum_l != 0) & (sum_r != 0)).nonzero()[0]
+        qls = qls[inds]
+        qrs = qrs[inds]
+        sum_l = np.asfarray(sum_l[inds]).reshape(len(inds), 1)
+        sum_r = np.asfarray(sum_r[inds]).reshape(len(inds), 1)
+        cdef np.ndarray qrls_norm = (qls + qrs) / (sum_l + sum_r)
+        cdef np.ndarray h_q = self.entropy(qrls_norm)
+        cdef np.ndarray h_ql = self.entropy(qls / sum_l)
+        cdef np.ndarray h_qr = self.entropy(qrs / sum_r)
+        pr_l = (sum_l / (sum_l + sum_r)).flatten()
+        pr_r = 1. - pr_l
+        out[inds] = h_q - pr_l * h_ql - pr_r * h_qr
+        return out
 
     cpdef train_reduce_info(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls, np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
         """
