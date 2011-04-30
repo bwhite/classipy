@@ -241,7 +241,7 @@ cdef class RandomForestClassifier(object):
                 self.train_find_feature(qr_labels, qr_values, tree_depth),
                 {'info_gain': info_gain})
 
-    def train(self, label_values, replace=True):
+    def train(self, label_values, replace=True, converted=False):
         """Train the classifier
 
         Args:
