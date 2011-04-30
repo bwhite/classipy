@@ -128,9 +128,10 @@ cdef class RandomForestClassifier(object):
             np array of entropy in 'bits'
         """
         cdef int i
+        cdef np.ndarray x
         cdef np.ndarray[np.float64_t, ndim=1] out = np.zeros(q.shape[0])
         for i, x in enumerate(q):
-            out[i] = fast_entropy(<double*>q.data, <int>q.shape[0])
+            out[i] = fast_entropy(<double*>x.data, <int>x.shape[0])
         return out
 
     cdef np.ndarray[np.float64_t, ndim=1] information_gain(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
