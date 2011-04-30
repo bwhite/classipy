@@ -225,15 +225,14 @@ cdef class RandomForestClassifier(object):
         """
         if tree_depth < 0:
             return (normalized_histogram(labels, self.num_classes),)
-        cdef float max_info_gain = -float('inf')
         feats = self.make_features()
         info_gain, feat_ind = self.train_reduce_info(*self.train_map_hists(labels, values, feats))
         feat = self.feature_factory.select_feature(feats, feat_ind)        
         feat_ser = feat.dumps()
-        if info_gain <= self.min_info:
-            return (normalized_histogram(labels, self.num_classes),)
         print('[%d]MaxInfo: Feat[%s] InfoGain[%f]' % (tree_depth, feat,
                                                       info_gain))
+        if info_gain <= self.min_info:
+            return (normalized_histogram(labels, self.num_classes),)
         tree_depth = tree_depth - 1
         ql_labels, ql_values, qr_labels, qr_values = feat.label_values_partition(labels, values)
         return (feat_ser,
