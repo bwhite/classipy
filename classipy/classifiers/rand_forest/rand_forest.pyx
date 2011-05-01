@@ -81,21 +81,6 @@ cpdef np.ndarray[np.int32_t, ndim=2, mode='c'] histogram_weight(np.ndarray[np.in
     return out
 
 
-cpdef np.ndarray[np.float64_t, ndim=1, mode='c'] normalized_histogram(np.ndarray[np.int32_t, ndim=1, mode='c'] labels, int num_classes):
-    """Computes a histogram of labels
-
-    Args:
-        labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
-
-    Returns:
-        Ndarray of length 'num_classes' with indexes as labels and
-        values as probs
-    """
-    cdef np.ndarray out = histogram(labels, num_classes)
-    cdef double scale = 1./ np.sum(out)
-    return scale * out
-
-
 cdef class RandomForestClassifier(object):
     cdef public object feature_factory
     cdef int tree_depth
@@ -236,7 +221,7 @@ cdef class RandomForestClassifier(object):
             (feat_ser, left_tree(false), right_tree(true), metadata)
         """
         if tree_depth < 0:
-            return (normalized_histogram(labels, self.num_classes),)
+            return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
         feats = self.make_features()
         info_gain, feat_ind = self.train_reduce_info(*self.train_map_hists(labels, values, feats))
         feat = self.feature_factory.select_feature(feats, feat_ind)        
@@ -244,7 +229,7 @@ cdef class RandomForestClassifier(object):
         print('[%d]MaxInfo: Feat[%s] InfoGain[%f]' % (tree_depth, feat,
                                                       info_gain))
         if info_gain <= self.min_info:
-            return (normalized_histogram(labels, self.num_classes),)
+            return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
         tree_depth = tree_depth - 1
         ql_labels, ql_values, qr_labels, qr_values = feat.label_values_partition(labels, values)
         return (feat_ser,

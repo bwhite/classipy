@@ -1,6 +1,22 @@
 import numpy as np
 cimport numpy as np
 
+
+cpdef np.ndarray[np.float64_t, ndim=1, mode='c'] normalized_histogram(np.ndarray[np.int32_t, ndim=1, mode='c'] labels, int num_classes):
+    """Computes a histogram of labels
+
+    Args:
+        labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
+
+    Returns:
+        Ndarray of length 'num_classes' with indexes as labels and
+        values as probs
+    """
+    cdef np.ndarray out = histogram(labels, num_classes)
+    cdef double scale = 1./ np.sum(out)
+    return scale * out
+
+
 # This is a sample FeatureFactory that implicitly specifies the interface
 # This will be kept up to date to work with the script in the examples dir.
 # It uses the feature below this.
@@ -35,6 +51,9 @@ cdef class VectorFeatureFactory(object):
             Feature
         """
         return feats[feat_ind / self.num_thresh][feat_ind % self.num_thresh]
+
+    def leaf_probability(self, labels, values, num_classes):
+        return normalized_histogram(labels, num_classes)
 
 
 cdef class VectorFeature(object):
