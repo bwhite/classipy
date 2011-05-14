@@ -26,7 +26,7 @@ import numpy as np
 import classipy
 import zlib
 
-EXCEPTIONS = ['SVMLight']
+EXCEPTIONS = ['SVMLight', 'SVMLinear']
 
 class Test(unittest.TestCase):
     def test_serialize(self):
