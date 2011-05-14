@@ -136,23 +136,6 @@ cdef class RandomForestClassifier(object):
             qrs.append(cur_qrs)
         return np.vstack(qls), np.vstack(qrs)
 
-    cpdef train_combine_hists(self, qls_qrs_iter):
-        """Sum the intermediate results among splits
-
-        Args:
-            qls_qrs_iter: Iterator of num_splits elements of
-                (qls, qrs) where
-                qls/qrs is num_feat X num_class array
-
-        Returns:
-            Tuple of (qls, qrs) with qls/qrs of shape
-                num_feat x num_class_array 
-        """
-        qlss, qrss = zip(*list(qls_qrs_iter))
-        cdef np.ndarray total_qls = np.sum(qlss, 0)  # num_feat x num_class_array
-        cdef np.ndarray total_qrs = np.sum(qrss, 0)  # num_feat x num_class_array
-        return total_qls, total_qrs
-
     cdef np.ndarray[np.float64_t, ndim=1, mode='c'] entropy(self, np.ndarray[np.float64_t, ndim=2, mode='c'] q):
         """Shannon Entropy
 
@@ -186,6 +169,7 @@ cdef class RandomForestClassifier(object):
         qrs = qrs[inds]
         sum_l = np.asfarray(sum_l[inds]).reshape(len(inds), 1)
         sum_r = np.asfarray(sum_r[inds]).reshape(len(inds), 1)
+        # TODO: These values are the same, optimize by picking one
         cdef np.ndarray qrls_norm = (qls + qrs) / (sum_l + sum_r)
         cdef np.ndarray h_q = self.entropy(qrls_norm)
         cdef np.ndarray h_ql = self.entropy(qls / sum_l)
