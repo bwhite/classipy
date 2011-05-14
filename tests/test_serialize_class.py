@@ -40,7 +40,7 @@ class Test(unittest.TestCase):
                 except TypeError:
                     pass
         dim = 10
-        n_tr = 200
+        n_tr = 50
         n_te = 1000
         sam_mean = [100] * dim
         def sample0():
