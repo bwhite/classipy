@@ -24,15 +24,14 @@ import math
 import tempfile
 import cPickle as pickle
 
-import libsvm.svm
-import libsvm.svmutil
-
 from base import BinaryClassifier
 
 
 class SVM(BinaryClassifier):
 
     def __init__(self, options=None):
+        import libsvm.svm
+        import libsvm.svmutil
         super(SVM, self).__init__()
         if not options:
             options = {}
@@ -56,6 +55,8 @@ class SVM(BinaryClassifier):
         Returns:
             self
         """
+        import libsvm.svm
+        import libsvm.svmutil
         if not converted:
             label_values = self.convert_label_values(label_values)
         try:
@@ -80,6 +81,8 @@ class SVM(BinaryClassifier):
         Returns:
             Sorted (descending) list of (confidence, label)
         """
+        import libsvm.svm
+        import libsvm.svmutil
         if not converted:
             value = self.convert_value(value)
         labels, stats, confidence = libsvm.svmutil.svm_predict([-1],
@@ -97,6 +100,8 @@ class SVM(BinaryClassifier):
         Returns:
             Value in an efficient representation.
         """
+        import libsvm.svm
+        import libsvm.svmutil
         return super(SVM, cls).convert_value(value, to_type=list, *args, **kw)
 
     def dumps(self):
@@ -105,6 +110,8 @@ class SVM(BinaryClassifier):
         Returns:
             A string that can be passed to the class' loads method
         """
+        import libsvm.svm
+        import libsvm.svmutil
         m = self._m
         self._m = None
         with tempfile.NamedTemporaryFile() as fp:
@@ -125,6 +132,8 @@ class SVM(BinaryClassifier):
         Returns:
             An instance of this class as it was before it was serialized
         """
+        import libsvm.svm
+        import libsvm.svmutil
         c, ser_model = pickle.loads(s)
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(ser_model)

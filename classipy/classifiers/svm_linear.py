@@ -23,8 +23,6 @@ __license__ = 'GPL V3'
 import math
 import tempfile
 import cPickle as pickle
-import liblinear.linear
-import liblinear.linearutil
 from base import BinaryClassifier
 
 
@@ -32,6 +30,8 @@ class SVMLinear(BinaryClassifier):
 
     def __init__(self, options=None):
         super(SVMLinear, self).__init__()
+        import liblinear.linear
+        import liblinear.linearutil
         self._predict_param = ''
         try:
             if 'b' in options:
@@ -54,6 +54,8 @@ class SVMLinear(BinaryClassifier):
         Returns:
             self
         """
+        import liblinear.linear
+        import liblinear.linearutil
         if not converted:
             label_values = self.convert_label_values(label_values)
         labels, values = zip(*list(label_values))
@@ -73,6 +75,8 @@ class SVMLinear(BinaryClassifier):
         Returns:
             Sorted (descending) list of (confidence, label)
         """
+        import liblinear.linear
+        import liblinear.linearutil
         if not converted:
             value = self.convert_value(value)
         opt = self._predict_param
@@ -92,6 +96,8 @@ class SVMLinear(BinaryClassifier):
         Returns:
             Value in an efficient representation.
         """
+        import liblinear.linear
+        import liblinear.linearutil
         value = super(SVMLinear, cls).convert_value(value, to_type=list)
         return liblinear.linear.gen_feature_nodearray(value, issparse=False)[0]
 
@@ -101,6 +107,8 @@ class SVMLinear(BinaryClassifier):
         Returns:
             A string that can be passed to the class' loads method
         """
+        import liblinear.linear
+        import liblinear.linearutil
         m = self._m
         self._m = None
         with tempfile.NamedTemporaryFile() as fp:
@@ -121,6 +129,8 @@ class SVMLinear(BinaryClassifier):
         Returns:
             An instance of this class as it was before it was serialized
         """
+        import liblinear.linear
+        import liblinear.linearutil
         c, ser_model = pickle.loads(s)
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(ser_model)
