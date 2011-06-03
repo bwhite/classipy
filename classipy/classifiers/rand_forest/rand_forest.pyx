@@ -37,11 +37,92 @@ cdef extern from "fast_hist.h":
 include "vector_feature.pyx"
 
 
+cpdef train_map_hists(labels, values, feats, num_classes):
+    """Compute the histograms for a series of labels/values
+
+    Args:
+        labels: Np array of labels
+        values: List of opaque values (given to the feature)
+        feats: List of functions
+        num_classes: Number of classes
+
+    Returns:
+        Tuple of (qls, qrs)
+        where qls/qrs is a num_feat X num_class array
+    """
+    qls, qrs = [], []
+    for feat in feats:
+        cur_qls, cur_qrs = feat.label_histograms(labels, values, num_classes)
+        qls.append(cur_qls)
+        qrs.append(cur_qrs)
+    return np.vstack(qls), np.vstack(qrs)
+
+
+cdef np.ndarray[np.float64_t, ndim=1, mode='c'] entropy(np.ndarray[np.float64_t, ndim=2, mode='c'] q):
+    """Shannon Entropy
+
+    Args:
+        q: Ndarray of shape 'num_features X num_classes' with indexes as labels and
+            values as probabilities
+
+    Returns:
+        np array of entropy in 'bits'
+    """
+    cdef int i
+    cdef np.ndarray x
+    cdef np.ndarray[np.float64_t, ndim=1, mode='c'] out = np.zeros(q.shape[0])
+    for i, x in enumerate(q):
+        out[i] = fast_entropy(<double*>x.data, <int>x.shape[0])
+    return out
+
+
+cdef np.ndarray[np.float64_t, ndim=1, mode='c'] information_gain(np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
+                                                                 np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
+    """Compute the information gain of the split
+
+    Args:
+        qls: Left histogram of shape num_feat x num_class_array
+        qrs: Right histogram of shape num_feat x num_class_array
+    """
+    cdef np.ndarray sum_l = np.sum(qls, 1)  # NOTE: Possible overflow opportunity
+    cdef np.ndarray sum_r = np.sum(qrs, 1)
+    out = np.zeros(sum_l.shape[0])
+    inds = ((sum_l != 0) & (sum_r != 0)).nonzero()[0]
+    qls = qls[inds]
+    qrs = qrs[inds]
+    sum_l = np.asfarray(sum_l[inds]).reshape(len(inds), 1)
+    sum_r = np.asfarray(sum_r[inds]).reshape(len(inds), 1)
+    # TODO: These values are the same, optimize by picking one
+    cdef np.ndarray qrls_norm = (qls + qrs) / (sum_l + sum_r)
+    cdef np.ndarray h_q = entropy(qrls_norm)
+    cdef np.ndarray h_ql = entropy(qls / sum_l)
+    cdef np.ndarray h_qr = entropy(qrs / sum_r)
+    pr_l = (sum_l / (sum_l + sum_r)).flatten()
+    pr_r = 1. - pr_l
+    out[inds] = h_q - pr_l * h_ql - pr_r * h_qr
+    return out
+
+
+cpdef train_reduce_info(np.ndarray[np.int32_t, ndim=2, mode='c'] qls, np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
+    """
+    Args:
+        qls: Left histogram of shape num_feat x num_class_array
+        qrs: Right histogram of shape num_feat x num_class_array
+
+    Returns:
+        Tuple of (info_gain, feat_ind)
+    """
+    cdef np.ndarray info_gains = information_gain(qls, qrs)
+    max_ind = np.argmax(info_gains)
+    return info_gains[max_ind], max_ind
+
+
 cpdef np.ndarray[np.int32_t, ndim=1] histogram(np.ndarray[np.int32_t, ndim=1, mode='c'] labels, int num_classes):
     """Computes a histogram of labels
 
     Args:
         labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
+        num_classes: Number of classes
 
     Returns:
         Ndarray of length 'num_classes' with indexes as labels and
@@ -66,6 +147,7 @@ cpdef np.ndarray[np.int32_t, ndim=2, mode='c'] histogram_weight(np.ndarray[np.in
         labels:  Ndarray of labels (ints) (must be 0 <= x < num_classes)
         weights: Ndarray of weights (ints) that signify how much to weight each label
             each row results in a different histogram.
+        num_classes: Number of classes
 
     Returns:
         Ndarray of shape (weight_rows x num_classes) with indexes as labels and
@@ -79,6 +161,23 @@ cpdef np.ndarray[np.int32_t, ndim=2, mode='c'] histogram_weight(np.ndarray[np.in
         return out
     fast_histogram_weight(<int *>labels.data,  <int *>weights.data, labels.shape[0], weights.shape[0], num_classes, <int *>out.data)
     return out
+
+cpdef make_features(feature_factory, num_feat, seed=0):
+    """Generate a list of features
+
+    Args:
+        feature_factory:
+        num_feat:
+        seed: An integer seed given to np.random.seed, if 0 then don't seed
+            (default is 0)
+
+    Returns:
+        List of (feat_ser, feat) in order of increasing feat_num
+    """
+    if seed:
+        np.random.seed(seed)
+    return [feature_factory.gen_feature()
+            for x in range(num_feat)]
 
 
 cdef class RandomForestClassifier(object):
@@ -102,96 +201,6 @@ cdef class RandomForestClassifier(object):
         # Derived from args
         self.trees = []
 
-    cdef make_features(self, seed=0):
-        """Generate a list of features
-
-        Args:
-            seed: An integer seed given to np.random.seed, if 0 then don't seed
-                (default is 0)
-
-        Returns:
-            List of (feat_ser, feat) in order of increasing feat_num
-        """
-        if seed:
-            np.random.seed(seed)
-        return [self.feature_factory.gen_feature()
-                for x in range(self.num_feat)]
-
-    cpdef train_map_hists(self, labels, values, feats):
-        """Compute the histograms for a series of labels/values
-
-        Args:
-            labels: Np array of labels
-            values: List of opaque values (given to the feature)
-            feats: List of functions
-
-        Returns:
-            Tuple of (qls, qrs)
-            where qls/qrs is a num_feat X num_class array
-        """
-        qls, qrs = [], []
-        for feat in feats:
-            cur_qls, cur_qrs = feat.label_histograms(labels, values, self.num_classes)
-            qls.append(cur_qls)
-            qrs.append(cur_qrs)
-        return np.vstack(qls), np.vstack(qrs)
-
-    cdef np.ndarray[np.float64_t, ndim=1, mode='c'] entropy(self, np.ndarray[np.float64_t, ndim=2, mode='c'] q):
-        """Shannon Entropy
-
-        Args:
-            q: Ndarray of shape 'num_features X num_classes' with indexes as labels and
-                values as probabilities
-
-        Returns:
-            np array of entropy in 'bits'
-        """
-        cdef int i
-        cdef np.ndarray x
-        cdef np.ndarray[np.float64_t, ndim=1, mode='c'] out = np.zeros(q.shape[0])
-        for i, x in enumerate(q):
-            out[i] = fast_entropy(<double*>x.data, <int>x.shape[0])
-        return out
-
-    cdef np.ndarray[np.float64_t, ndim=1, mode='c'] information_gain(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls,
-                                                                     np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
-        """Compute the information gain of the split
-
-        Args:
-            qls: Left histogram of shape num_feat x num_class_array
-            qrs: Right histogram of shape num_feat x num_class_array
-        """
-        cdef np.ndarray sum_l = np.sum(qls, 1)  # NOTE: Possible overflow opportunity
-        cdef np.ndarray sum_r = np.sum(qrs, 1)
-        out = np.zeros(sum_l.shape[0])
-        inds = ((sum_l != 0) & (sum_r != 0)).nonzero()[0]
-        qls = qls[inds]
-        qrs = qrs[inds]
-        sum_l = np.asfarray(sum_l[inds]).reshape(len(inds), 1)
-        sum_r = np.asfarray(sum_r[inds]).reshape(len(inds), 1)
-        # TODO: These values are the same, optimize by picking one
-        cdef np.ndarray qrls_norm = (qls + qrs) / (sum_l + sum_r)
-        cdef np.ndarray h_q = self.entropy(qrls_norm)
-        cdef np.ndarray h_ql = self.entropy(qls / sum_l)
-        cdef np.ndarray h_qr = self.entropy(qrs / sum_r)
-        pr_l = (sum_l / (sum_l + sum_r)).flatten()
-        pr_r = 1. - pr_l
-        out[inds] = h_q - pr_l * h_ql - pr_r * h_qr
-        return out
-
-    cpdef train_reduce_info(self, np.ndarray[np.int32_t, ndim=2, mode='c'] qls, np.ndarray[np.int32_t, ndim=2, mode='c'] qrs):
-        """
-        Args:
-            qls: Left histogram of shape num_feat x num_class_array
-            qrs: Right histogram of shape num_feat x num_class_array
-
-        Returns:
-            Tuple of (info_gain, feat_ind)
-        """
-        cdef np.ndarray info_gains = self.information_gain(qls, qrs)
-        max_ind = np.argmax(info_gains)
-        return info_gains[max_ind], max_ind
-
     cdef train_find_feature(self, labels, values, tree_depth):
         """Recursively and greedily train the tree
 
@@ -206,8 +215,8 @@ cdef class RandomForestClassifier(object):
         """
         if tree_depth < 0:
             return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
-        feats = self.make_features()
-        info_gain, feat_ind = self.train_reduce_info(*self.train_map_hists(labels, values, feats))
+        feats = make_features(self.feature_factory, self.num_feat)
+        info_gain, feat_ind = train_reduce_info(*train_map_hists(labels, values, feats, self.num_classes))
         feat = self.feature_factory.select_feature(feats, feat_ind)        
         feat_ser = feat.dumps()
         print('[%d]MaxInfo: Feat[%s] InfoGain[%f]' % (tree_depth, feat,
