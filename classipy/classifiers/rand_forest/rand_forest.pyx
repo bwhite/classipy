@@ -181,6 +181,12 @@ cpdef make_features(feature_factory, num_feat, seed=None):
 
 
 cdef class RandomForestClassifier(object):
+    """Random Forest Classifier
+
+    RandomForestClassifier(feature_factory, num_classes=2, tree_depth=4,
+        num_feat=1000, min_info=.01, trees_ser=None, verbose=True,
+        seed=None)
+    """
     cdef public object feature_factory
     cdef int tree_depth
     cdef double min_info
@@ -188,6 +194,8 @@ cdef class RandomForestClassifier(object):
     cdef int num_feat
     cdef public object trees_ser
     cdef public object trees
+    cdef object verbose
+    cdef object seed
     
     def __init__(self, feature_factory, num_classes=2, tree_depth=4, num_feat=1000,
                  min_info=.01, trees_ser=None, verbose=True, seed=None):
