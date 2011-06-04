@@ -162,19 +162,19 @@ cpdef np.ndarray[np.int32_t, ndim=2, mode='c'] histogram_weight(np.ndarray[np.in
     fast_histogram_weight(<int *>labels.data,  <int *>weights.data, labels.shape[0], weights.shape[0], num_classes, <int *>out.data)
     return out
 
-cpdef make_features(feature_factory, num_feat, seed=0):
+cpdef make_features(feature_factory, num_feat, seed=None):
     """Generate a list of features
 
     Args:
         feature_factory:
         num_feat:
-        seed: An integer seed given to np.random.seed, if 0 then don't seed
-            (default is 0)
+        seed: An integer seed given to np.random.seed, if None then don't seed
+            (default is None)
 
     Returns:
         List of (feat_ser, feat) in order of increasing feat_num
     """
-    if seed:
+    if seed is not None:
         np.random.seed(seed)
     return [feature_factory.gen_feature()
             for x in range(num_feat)]
@@ -190,7 +190,7 @@ cdef class RandomForestClassifier(object):
     cdef public object trees
     
     def __init__(self, feature_factory, num_classes=2, tree_depth=4, num_feat=1000,
-                 min_info=.01, trees_ser=None):
+                 min_info=.01, trees_ser=None, verbose=True, seed=None):
         self.feature_factory = feature_factory
         # From args (everything here must be in __reduce__ for pickle to work)
         self.num_classes = num_classes
@@ -198,6 +198,8 @@ cdef class RandomForestClassifier(object):
         self.tree_depth = tree_depth
         self.min_info = min_info
         self.trees_ser = trees_ser if trees_ser else []
+        self.verbose = verbose
+        self.seed = seed
         # Derived from args
         self.trees = []
 
@@ -215,12 +217,13 @@ cdef class RandomForestClassifier(object):
         """
         if tree_depth < 0:
             return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
-        feats = make_features(self.feature_factory, self.num_feat)
+        feats = make_features(self.feature_factory, self.num_feat, self.seed)
         info_gain, feat_ind = train_reduce_info(*train_map_hists(labels, values, feats, self.num_classes))
         feat = self.feature_factory.select_feature(feats, feat_ind)        
         feat_ser = feat.dumps()
-        print('[%d]MaxInfo: Feat[%s] InfoGain[%f]' % (tree_depth, feat,
-                                                      info_gain))
+        if self.verbose:
+            print('[%d]MaxInfo: Feat[%s] InfoGain[%f]' % (tree_depth, feat,
+                                                          info_gain))
         if info_gain <= self.min_info:
             return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
         tree_depth = tree_depth - 1
