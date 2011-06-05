@@ -217,7 +217,7 @@ cdef class RandomForestClassifier(object):
             (prob array, ) if leaf else
             (feat_ser, left_tree(false), right_tree(true), metadata)
         """
-        if tree_depth < 0:
+        if tree_depth == 0:
             return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
         feats = make_features(self.feature_factory, self.num_feat, self.seed)
         info_gain, feat_ind = train_reduce_info(*train_map_hists(labels, values, feats, self.num_classes))
