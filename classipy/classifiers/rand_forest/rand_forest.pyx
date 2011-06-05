@@ -218,7 +218,7 @@ cdef class RandomForestClassifier(object):
             (feat_ser, left_tree(false), right_tree(true), metadata)
         """
         if tree_depth == 0:
-            return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
+            return [self.feature_factory.leaf_probability(labels, values, self.num_classes)]
         feats = make_features(self.feature_factory, self.num_feat, self.seed)
         info_gain, feat_ind = train_reduce_info(*train_map_hists(labels, values, feats, self.num_classes))
         feat = self.feature_factory.select_feature(feats, feat_ind)        
@@ -230,10 +230,10 @@ cdef class RandomForestClassifier(object):
             return (self.feature_factory.leaf_probability(labels, values, self.num_classes),)
         tree_depth = tree_depth - 1
         ql_labels, ql_values, qr_labels, qr_values = feat.label_values_partition(labels, values)
-        return (feat_ser,
+        return [feat_ser,
                 self.train_find_feature(ql_labels, ql_values, tree_depth),
                 self.train_find_feature(qr_labels, qr_values, tree_depth),
-                {'info_gain': info_gain})
+                {'info_gain': info_gain}]
 
     def train(self, label_values, replace=True, converted=False):
         """Train the classifier
