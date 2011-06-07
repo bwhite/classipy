@@ -189,10 +189,10 @@ cdef class RandomForestClassifier(object):
     cdef public object trees_ser
     cdef public object trees
     cdef object verbose
-    cdef object seed
+    cdef object level_seeds
     
     def __init__(self, feature_factory, num_classes=2, tree_depth=4, num_feat=1000,
-                 min_info=.01, trees_ser=None, verbose=True, seed=None):
+                 min_info=.01, trees_ser=None, verbose=True, level_seeds=None):
         self.feature_factory = feature_factory
         # From args (everything here must be in __reduce__ for pickle to work)
         self.num_classes = num_classes
@@ -201,7 +201,7 @@ cdef class RandomForestClassifier(object):
         self.min_info = min_info
         self.trees_ser = trees_ser if trees_ser else []
         self.verbose = verbose
-        self.seed = seed
+        self.level_seeds = level_seeds
         # Derived from args
         self.trees = []
 
@@ -219,7 +219,8 @@ cdef class RandomForestClassifier(object):
         """
         if tree_depth == 0:
             return [self.feature_factory.leaf_probability(labels, values, self.num_classes)]
-        feats = make_features(self.feature_factory, self.num_feat, self.seed)
+        seed = self.level_seeds[self.tree_depth - tree_depth] if self.level_seeds else None
+        feats = make_features(self.feature_factory, self.num_feat, seed)
         info_gain, feat_ind = train_reduce_info(*train_map_hists(labels, values, feats, self.num_classes))
         feat = self.feature_factory.select_feature(feats, feat_ind)        
         feat_ser = feat.dumps()
