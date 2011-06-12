@@ -302,3 +302,20 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
     out_accuracy, out_params = max(vals)
     out_params.update(options)
     return out_accuracy, out_params
+
+
+def whiten(label_values):
+    """Convert values to zero mean and unit variance
+
+    Args:
+        label_values: Iterator of (label, value)
+
+    Returns:
+        List of label_values that have been scaled in each dimension to zero
+        mean and unit variance
+    """
+    label_values = list(label_values)
+    values = [x[1] for x in label_values]
+    value_mean = np.mean(values, 0)
+    value_std = np.std(values, 0)
+    return [(x, (y - value_mean) / value_std) for x, y in label_values]
