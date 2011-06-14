@@ -307,6 +307,9 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
 def whiten(label_values):
     """Convert values to zero mean and unit variance
 
+    Values that have zero variance are replaced with 0 instead of
+    NaN and warnings are suppressed.
+
     Args:
         label_values: Iterator of (label, value)
 
@@ -316,6 +319,9 @@ def whiten(label_values):
     """
     label_values = list(label_values)
     values = [x[1] for x in label_values]
+    prev_err = np.seterr(all='ignore')
     value_mean = np.mean(values, 0)
     value_std = np.std(values, 0)
-    return [(x, (y - value_mean) / value_std) for x, y in label_values]
+    out = [(x, np.nan_to_num((y - value_mean) / value_std)) for x, y in label_values]
+    np.seterr(**prev_err)
+    return out
