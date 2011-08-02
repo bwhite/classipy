@@ -203,7 +203,7 @@ cdef class RandomForestClassifier(object):
         self.verbose = verbose
         self.level_seeds = level_seeds
         # Derived from args
-        self.trees = []
+        self.trees = [self.tree_deserialize(x) for x in self.trees_ser]
 
     cdef train_find_feature(self, labels, values, tree_depth):
         """Recursively and greedily train the tree
