@@ -133,7 +133,8 @@ def confusion_stats(confusion):
         accuracy = float('nan')
     return {'accuracy': accuracy, 'precision': precision, 'recall': recall,
             'tp': tps, 'fp': fps, 'fn': fns, 'total_true': total_true,
-            'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1}
+            'total_pred': total_pred, 'miss_rate': miss_rate, 'f1': f1,
+            'confusion': confusion}
 
 
 def gen_confusion(test_results):

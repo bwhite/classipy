@@ -20,20 +20,24 @@ def data_generator(num_points):
         num_points: Number of points to generate
     """
     # Here we make a few fake classes and see if the classifier can get it
-    cgens = [[(.2, .4), (0, 1)], [(.3, .6), (0, 1)]]
+    cgens = [[(.2, .4), (0, 1)], [(.3, .6), (0, 1)], [(.3, .6), (0, 1)]]
     print(cgens)
     out = []
     for x in range(num_points):
         label = random.randint(0, len(cgens) - 1)
         value = [np.random.uniform(x, y) for x, y in cgens[label]]
+        if label == 2:
+            value.append(label)
+        else:
+            value.append(0)
         out.append((label, value))
     return out
 
 
 def train():
     label_values = data_generator(50000)
-    dims = [(0., 1.), (0., 1.)]
-    feature_factory = classipy.rand_forest.VectorFeatureFactory(dims, 10)
+    dims = np.array([(0., 1.), (0., 1.), (0., 3.)])
+    feature_factory = classipy.rand_forest.VectorFeatureFactory(dims, np.array([0, 0, 2]), 10)
     rfc = classipy.RandomForestClassifier(feature_factory,
                                           num_feat=100)
     rfc.train(label_values)

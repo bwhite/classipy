@@ -21,19 +21,38 @@ cpdef np.ndarray[np.float64_t, ndim=1, mode='c'] normalized_histogram(np.ndarray
 # This will be kept up to date to work with the script in the examples dir.
 # It uses the feature below this.
 cdef class VectorFeatureFactory(object):
-    cdef object dims
+    """
+    Args:
+        dims: Numpy array of min_val, max_val where [min_val, max_val) shape of (num_dims, 2)
+        types: Numpy array where 0: Real, 1: Integer, 2: Categorical shape of (num_dims).  Real
+            generates continuous values and uses a <= feature, integer generates integral values
+            and uses a <= feature, and categorical generates integral values and uses a != feature.
+        num_thresh: Number of thresholds per feature
+        
+    """
+    cdef np.ndarray dims, types
     cdef int num_thresh
 
-    def __init__(self, dims, num_thresh):
-        self.dims = dims
-        self.num_thresh = num_thresh
+    def __init__(self, dims=None, types=None, num_thresh=None, label_values=None):
+        self.dims = np.asarray(dims) if dims is not None else dims
+        self.num_thresh = num_thresh if num_thresh is not None else 0
+        self.types = np.asarray(types) if types is not None else types
+        if label_values:
+            values = [x[1] for x in label_values]
+            self.dims = np.dstack([np.min(values, 0), np.max(values, 0)])[0]
 
     def gen_feature(self):
-        dim = random.randint(0, len(self.dims) - 1)
+        cdef int dim = random.randint(0, len(self.dims) - 1)
         min_val, max_val = self.dims[dim]
-        threshs = np.array([np.random.uniform(min_val, max_val,
-                                              self.num_thresh)]).T
-        return VectorFeature(dim=dim, threshs=threshs)
+        cdef int feat_type = self.types[dim]
+        if feat_type == 0:
+            threshs = np.random.uniform(min_val, max_val, self.num_thresh)
+        elif feat_type == 1 or feat_type == 2:
+            threshs = np.random.randint(min_val, max_val, self.num_thresh)
+        else:
+            raise ValueError('Feature type not recognized')
+        threshs = np.ascontiguousarray(threshs.reshape((threshs.size, 1)))
+        return VectorFeature(dim=dim, threshs=threshs, feat_type=feat_type)
 
     def loads(self, feat_ser):
         return VectorFeature(feat_ser=feat_ser)
@@ -59,34 +78,44 @@ cdef class VectorFeatureFactory(object):
 cdef class VectorFeature(object):
     cdef object feat_ser
     cdef int dim
-    cdef threshs
+    cdef np.ndarray threshs
+    cdef int feat_type
 
-    def __init__(self, feat_ser=None, dim=None, threshs=None):
+    def __init__(self, feat_ser=None, dim=None, threshs=None, feat_type=None):
         self.feat_ser = feat_ser
         if self.feat_ser:
             self._deserialize()
         else:
             self.dim = dim
             self.threshs = threshs
+            self.feat_type = feat_type
 
     def _deserialize(self):
         data = pickle.loads(self.feat_ser)
         self.dim = data['dim']
         self.threshs = data['threshs']
+        self.feat_type = data['feat_type']
 
     def __str__(self):
         if self.threshs.size == 1:
-            return '%s <= x[%d]' % (self.threshs[0][0], self.dim)
-        return '%s <= x[%d]' % (self.threshs, self.dim)
+            t = self.threshs[0][0]
+        else:
+            t = self.threshs
+        if self.feat_type < 2:
+            o = '<='
+        else:
+            o = '=='
+        return '%s %s x[%d]' % (t, o, self.dim)
 
     def dumps(self):
-        return pickle.dumps({'dim': self.dim, 'threshs': self.threshs}, -1)
+        return pickle.dumps({'dim': self.dim, 'threshs': self.threshs, 'feat_type': self.feat_type}, -1)
 
     def __repr__(self):
-        return 'VectorFeature(dim=%r, threshs=%r)' % (self.dim, self.threshs)
+        return 'VectorFeature(dim=%r, threshs=%r, feat_type=%f)' % (self.dim, self.threshs, self.feat_type)
 
     def __getitem__(self, index):
         return VectorFeature(dim=self.dim,
+                             feat_type=self.feat_type,
                              threshs=np.array([[self.threshs.flat[int(index)]]]))
 
     def __call__(self, values):
@@ -99,9 +128,13 @@ cdef class VectorFeature(object):
         """
         values = np.asarray(values)
         if values.ndim == 1:
-            return values[self.dim] >= self.threshs
+            v = values[self.dim]
         else:
-            return values[:, self.dim] >= self.threshs
+            v = values[:, self.dim]
+        if self.feat_type < 2:
+            return v >= self.threshs
+        else:
+            return v == self.threshs
 
     def label_histograms(self, labels, values, int num_classes):
         """
