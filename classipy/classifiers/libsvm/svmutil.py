@@ -232,11 +232,12 @@ def svm_predict(y, x, m, options=""):
 
 	ACC, MSE, SCC = evaluations(y, pred_labels)
 	l = len(y)
-	if svm_type in [EPSILON_SVR, NU_SVR]:
-		print("Mean squared error = %g (regression)" % MSE)
-		print("Squared correlation coefficient = %g (regression)" % SCC)
-	else:
-		print("Accuracy = %g%% (%d/%d) (classification)" % (ACC, int(l*ACC/100), l))
+        # NOTE(brandyn): Commented this out
+	#if svm_type in [EPSILON_SVR, NU_SVR]:
+	#	print("Mean squared error = %g (regression)" % MSE)
+	#	print("Squared correlation coefficient = %g (regression)" % SCC)
+	#else:
+	#	print("Accuracy = %g%% (%d/%d) (classification)" % (ACC, int(l*ACC/100), l))
 
 	return pred_labels, (ACC, MSE, SCC), pred_values
 

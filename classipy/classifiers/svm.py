@@ -15,6 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """SVM Classifier
+
+Modifications to LibSVM (marked above and below with a note)
+- Changed libsvm/svm.py to import using numpy's ctypes importer (better at finding them)
+- Changed the output precision of the svm save model to be .20g instead of .g (in svm.cpp)
+- Commented out the accuracy display in svm.py
 """
 
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
