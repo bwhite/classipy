@@ -6,29 +6,17 @@ import sys
 import os
 
 # For unix the prefix 'lib' is not considered.
-# NOTE(brandyn): Changed below here for loading libraries
-#if find_library('svm'):
-#	libsvm = CDLL(find_library('svm'))
-#elif find_library('libsvm'):
-#	libsvm = CDLL(find_library('libsvm'))
-#else:
-#	if sys.platform == 'win32':
-#		libsvm = CDLL(os.path.join(os.path.dirname(__file__),\
-#				'../windows/libsvm.dll'))
-#	else:
-#		libsvm = CDLL(os.path.join(os.path.dirname(__file__),\
-#				'../libsvm.so.2'))
-#
-
-import numpy as np
-from . import __path__
-
-# Load library
-try:
-    libsvm = np.ctypeslib.load_library('libsvm', os.path.abspath(__path__[0] + '../../../lib'))
-except OSError:
-    libsvm = np.ctypeslib.load_library('libsvm', '.')
-# NOTE(brandyn): Changed above here for loading libraries
+if find_library('svm'):
+	libsvm = CDLL(find_library('svm'))
+elif find_library('libsvm'):
+	libsvm = CDLL(find_library('libsvm'))
+else:
+	if sys.platform == 'win32':
+		libsvm = CDLL(os.path.join(os.path.dirname(__file__),\
+				'../windows/libsvm.dll'))
+	else:
+		libsvm = CDLL(os.path.join(os.path.dirname(__file__),\
+				'../libsvm.so.2'))
 
 # Construct constants
 SVM_TYPE = ['C_SVC', 'NU_SVC', 'ONE_CLASS', 'EPSILON_SVR', 'NU_SVR' ]
