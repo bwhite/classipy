@@ -25,6 +25,30 @@ import numpy as np
 
 import classipy
 
+def my_linear_kernel(x, y):
+    return np.dot(x, y.T)
+
+def make_classifier_instances():
+    """Make additional instances that may have custom parameters
+    """
+    import pickle
+    pickle.loads(pickle.dumps(classipy.SVMScikit(kernel=my_kernel)))
+    return [('SVMScikit (custom linear)', lambda : classipy.SVMScikit(kernel=my_kernel))]
+
+
+def classifiers():
+    for x in dir(classipy):
+        classifier = getattr(classipy, x)
+        try:
+            if issubclass(classifier, classipy.BinaryClassifier):
+                if classifier != classipy.BinaryClassifier:
+                    yield x, classifier
+        except TypeError:
+            pass
+    for x in make_classifier_instances():
+        yield x
+
+
 class Test(unittest.TestCase):
     def evaluate_classifiers(self, classifier_name, classifier, neg_sam_train, pos_sam_train, neg_sam_test, pos_sam_test, test_name, sample0, sample1, no_fail=False):
         test_values0 = [sample0() for x in range(neg_sam_test)]
@@ -64,15 +88,6 @@ class Test(unittest.TestCase):
                                                                                                          classifier_name))
 
     def test_linsep2d(self):
-        def classifiers():
-            for x in dir(classipy):
-                classifier = getattr(classipy, x)
-                try:
-                    if issubclass(classifier, classipy.BinaryClassifier):
-                        if classifier != classipy.BinaryClassifier:
-                            yield x, classifier
-                except TypeError:
-                    pass
         for sam, dim in [(2, 2), (10, 2), (100, 10), (100, 100), (2, 100)]:
             sam_mean = [100.] * dim
             def sample0():
@@ -83,15 +98,6 @@ class Test(unittest.TestCase):
                 self.evaluate_classifiers(classifier_name, classifier, sam, sam, sam, sam, 'lin', sample0, sample1)
 
     def test_perfect(self):
-        def classifiers():
-            for x in dir(classipy):
-                classifier = getattr(classipy, x)
-                try:
-                    if issubclass(classifier, classipy.BinaryClassifier):
-                        if classifier != classipy.BinaryClassifier:
-                            yield x, classifier
-                except TypeError:
-                    pass
         def sample0():
             # Perfect dimension plus a tiny bit of noise
             return np.array([-1.]) + np.random.random() / 10000.
@@ -101,15 +107,6 @@ class Test(unittest.TestCase):
             self.evaluate_classifiers(classifier_name, classifier, 100, 100, 100, 100, 'per', sample0, sample1)
 
     def test_perfect_with_random(self):
-        def classifiers():
-            for x in dir(classipy):
-                classifier = getattr(classipy, x)
-                try:
-                    if issubclass(classifier, classipy.BinaryClassifier):
-                        if classifier != classipy.BinaryClassifier:
-                            yield x, classifier
-                except TypeError:
-                    pass
         for classifier_name, classifier in classifiers():
             for dim in range(10, 20):
                 def sample0():

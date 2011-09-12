@@ -3,6 +3,7 @@ try:
 except ImportError:
     import unittest
 import numpy as np
+import classipy
 
 # Cheat Sheet (method/test) <http://docs.python.org/library/unittest.html>
 #
@@ -42,7 +43,11 @@ class Test(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_name(self):
+    def test_permute(self):
+        # It isn't immediately clear how the decision
+        # functions are ordered.  This shows that they are
+        # almost certainly ordered by Y value as opposed to
+        # when they first appear (as in stock libsvm)
         from scikits.learn import svm
         import random
         X = [[0, 0], [1, 1], [2, 2]]
@@ -50,12 +55,23 @@ class Test(unittest.TestCase):
         xy = zip(X, Y)
         for x in range(10):
             random.shuffle(xy)
-            print(xy)
             X, Y = zip(*xy)
             clf0 = svm.SVC()
             clf0.fit(X, Y)
-            print(clf0.decision_function([[2., 2.]]))
-            print(clf0.predict([[2., 2.]]))
+            #print(clf0.decision_function([[2., 2.]]))
+            #print(clf0.predict([[2., 2.]]))
+
+    def test_histogram_intersection(self):
+        label_values = [(0, [np.random.randint(30, 50), np.random.randint(0, 40)]) for x in range(50)]
+        label_values += [(1, [np.random.randint(0, 40), np.random.randint(30, 50)]) for x in range(50)]
+        
+        def hik(x, y):
+            return np.array([[np.sum(np.min([x0, y0], 0)) for x0 in x] for y0 in y])
+
+        a = classipy.SVMScikit(kernel=hik).train(label_values)
+        label_values = [(0, [np.random.randint(30, 50), np.random.randint(0, 40)]) for x in range(50)]
+        label_values += [(1, [np.random.randint(0, 40), np.random.randint(30, 50)]) for x in range(50)]
+        print(classipy.evaluate(a, label_values))
         
 
 if __name__ == '__main__':
