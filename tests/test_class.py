@@ -22,8 +22,9 @@ import unittest
 import time
 
 import numpy as np
-
+import random
 import classipy
+
 
 class Test(unittest.TestCase):
     def evaluate_classifiers(self, classifier_name, classifier, neg_sam_train, pos_sam_train, neg_sam_test, pos_sam_test, test_name, sample0, sample1, no_fail=False):
@@ -34,6 +35,7 @@ class Test(unittest.TestCase):
         train_values = [sample0() for x in range(neg_sam_train)]
         train_values += [sample1() for x in range(pos_sam_train)]
         train_label_values = zip(train_labels, train_values)
+        random.shuffle(train_label_values)
         st = time.time()
         c = classifier().train(train_label_values)
         train_time = time.time() - st

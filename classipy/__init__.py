@@ -7,4 +7,6 @@ from classifiers.knn import KNN
 from classifiers.lda import LDA
 from _classipy_rand_forest import RandomForestClassifier
 import _classipy_rand_forest as rand_forest
+from classifiers.svm_scikit import SVMScikit
+from classifiers.svm_linear_scikit import SVMLinearScikit
 #from visualization import decision_boundary_2d
