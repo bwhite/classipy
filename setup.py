@@ -37,7 +37,10 @@ except ImportError:
 # TODO This is a nasty hack, eventually we want to wrap everything with Cython
 subprocess.check_call('scons')
 ext_modules = [Extension("_classipy_rand_forest", ["classipy/classifiers/rand_forest/rand_forest" + source_ext,
-                                          'classipy/classifiers/rand_forest/fast_hist.c'],
+                                                   'classipy/classifiers/rand_forest/fast_hist.c'],
+                         extra_compile_args=['-I', np.get_include()]),
+               Extension("_classipy_kernels", ["classipy/classifiers/kernels/kernels" + source_ext,
+                                               'classipy/classifiers/kernels/kernels_aux.c'],
                          extra_compile_args=['-I', np.get_include()])]
 setup(name='classipy',
       cmdclass=cmdclass,

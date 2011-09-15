@@ -72,7 +72,25 @@ class Test(unittest.TestCase):
         label_values = [(0, [np.random.randint(30, 50), np.random.randint(0, 40)]) for x in range(50)]
         label_values += [(1, [np.random.randint(0, 40), np.random.randint(30, 50)]) for x in range(50)]
         print(classipy.evaluate(a, label_values))
-        
+
+    def test_fast_hik(self):
+        x, y = np.random.random((100, 50)), np.random.random((100, 50))
+
+        def hik(x, y):
+            return np.array([[np.sum(np.min([x0, y0], 0)) for y0 in y] for x0 in x])
+
+        def my_kernel(x, y):
+            return np.dot(x, y.T)
+
+        import time
+        st = time.time()
+        out0 = classipy.kernels.histogram_intersection(x, y)
+        print('HIK Fast[%f]' % (time.time() - st))
+        st = time.time()
+        out1 = hik(x, y)
+        print('HIK[%f]' % (time.time() - st))
+        self.assertEqual(my_kernel(x, y).shape, out0.shape)
+        np.testing.assert_equal(out0, out1)
 
 if __name__ == '__main__':
     unittest.main()
