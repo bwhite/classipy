@@ -64,11 +64,9 @@ class Test(unittest.TestCase):
     def test_histogram_intersection(self):
         label_values = [(0, [np.random.randint(30, 50), np.random.randint(0, 40)]) for x in range(50)]
         label_values += [(1, [np.random.randint(0, 40), np.random.randint(30, 50)]) for x in range(50)]
-        
-        def hik(x, y):
-            return np.array([[np.sum(np.min([x0, y0], 0)) for x0 in x] for y0 in y])
-
-        a = classipy.SVMScikit(kernel=hik).train(label_values)
+        #def hik(x, y):
+        #    return np.array([[np.sum(np.min([x0, y0], 0)) for x0 in x] for y0 in y])
+        a = classipy.SVMScikit(kernel=classipy.kernels.histogram_intersection).train(label_values)
         label_values = [(0, [np.random.randint(30, 50), np.random.randint(0, 40)]) for x in range(50)]
         label_values += [(1, [np.random.randint(0, 40), np.random.randint(30, 50)]) for x in range(50)]
         print(classipy.evaluate(a, label_values))
