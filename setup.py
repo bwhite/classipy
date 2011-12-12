@@ -35,7 +35,12 @@ except ImportError:
     cmdclass = {}
 
 # TODO This is a nasty hack, eventually we want to wrap everything with Cython
-subprocess.check_call('scons')
+
+try:
+    subprocess.check_call('scons')
+except OSError:
+    print('Please install "scons" as that is used to compile parts of classipy (we are working to remove this requirement)')
+    raise
 ext_modules = [Extension("_classipy_rand_forest", ["classipy/classifiers/rand_forest/rand_forest" + source_ext,
                                                    'classipy/classifiers/rand_forest/fast_hist.c'],
                          extra_compile_args=['-I', np.get_include()]),
