@@ -11,3 +11,4 @@ from classifiers.svm_scikit import SVMScikit
 from classifiers.svm_linear_scikit import SVMLinearScikit
 #from visualization import decision_boundary_2d
 import _classipy_kernels as kernels
+import pkg_resources as _pkg_resources  # NOTE(brandyn): Used to hint pyinstaller that we need it
