@@ -26,7 +26,23 @@ import cPickle as pickle
 import numpy as np
 
 from base import BinaryClassifier
+import contextlib
 
+
+@contextlib.contextmanager
+def hide_modules(modules):
+    import sys
+    prev_module_values = dict((m, sys.modules.get(m, None)) for m in modules)
+    for m in modules:
+        sys.modules[m] = None
+    yield
+    for m, module in prev_module_values.items():
+        if m in sys.modules:
+            if module:
+                sys.modules[m] = module
+            else:
+                del sys.modules[m]
+            
 
 class SVMScikit(BinaryClassifier):
 
@@ -36,7 +52,10 @@ class SVMScikit(BinaryClassifier):
         self._labels = None
 
     def _make_model(self):
-        from scikits.learn import svm
+        # NOTE(brandyn): This is to disable importing matplotlib which is unnecessary and causes dependency hell
+        import scipy.io.matlab.streams  # Needed by pyinstaller
+        with hide_modules(['matplotlib']):
+            from scikits.learn import svm
         kw = dict(self._param)
         kw.setdefault('kernel', 'linear')  # NOTE(brandyn): Default to linear
         self._m = svm.SVC(**kw)
