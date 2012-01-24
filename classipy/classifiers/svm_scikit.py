@@ -55,7 +55,8 @@ class SVMScikit(BinaryClassifier):
         # NOTE(brandyn): This is to disable importing matplotlib which is unnecessary and causes dependency hell
         import scipy.io.matlab.streams  # Needed by pyinstaller
         with hide_modules(['matplotlib']):
-            from scikits.learn import svm
+            from sklearn import svm
+            import sklearn.utils.arraybuilder
         kw = dict(self._param)
         kw.setdefault('kernel', 'linear')  # NOTE(brandyn): Default to linear
         self._m = svm.SVC(**kw)
