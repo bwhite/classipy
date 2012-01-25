@@ -15,11 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """SVM Classifier
-
-Modifications to LibSVM (marked above and below with a note)
-- Changed libsvm/svm.py to import using numpy's ctypes importer (better at finding them)
-- Changed the output precision of the svm save model to be .20g instead of .g (in svm.cpp)
-- Commented out the accuracy display in svm.py
 """
 
 __author__ = 'Brandyn A. White <bwhite@cs.umd.edu>'
@@ -28,26 +23,43 @@ __license__ = 'GPL V3'
 import math
 import tempfile
 import cPickle as pickle
+import numpy as np
 
 from base import BinaryClassifier
+import contextlib
 
+
+@contextlib.contextmanager
+def hide_modules(modules):
+    import sys
+    prev_module_values = dict((m, sys.modules.get(m, None)) for m in modules)
+    for m in modules:
+        sys.modules[m] = None
+    yield
+    for m, module in prev_module_values.items():
+        if m in sys.modules:
+            if module:
+                sys.modules[m] = module
+            else:
+                del sys.modules[m]
+            
 
 class SVM(BinaryClassifier):
 
-    def __init__(self, options=None):
-        import libsvm.svm
-        import libsvm.svmutil
+    def __init__(self, **kw):
         super(SVM, self).__init__()
-        if not options:
-            options = {}
-        if 't' not in options:
-            options['t'] = '0'
-        try:
-            self._param = ' '.join(['-%s %s' % x for x in options.items()])
-        except AttributeError:
-            self._param = ''
-        self._param += ' -q'  # Makes silent
-        self._m = None
+        self._param = kw
+        self._labels = None
+
+    def _make_model(self):
+        # NOTE(brandyn): This is to disable importing matplotlib which is unnecessary and causes dependency hell
+        import scipy.io.matlab.streams  # Needed by pyinstaller
+        with hide_modules(['matplotlib']):
+            from sklearn import svm
+            import sklearn.utils.arraybuilder
+        kw = dict(self._param)
+        kw.setdefault('kernel', 'linear')  # NOTE(brandyn): Default to linear
+        self._m = svm.SVC(**kw)
 
     def train(self, label_values, converted=False):
         """Build a model.
@@ -60,17 +72,15 @@ class SVM(BinaryClassifier):
         Returns:
             self
         """
-        import libsvm.svm
-        import libsvm.svmutil
         if not converted:
             label_values = self.convert_label_values(label_values)
         try:
             labels, values = zip(*list(label_values))
         except ValueError:
             raise ValueError('label_values is empty')
-        prob = libsvm.svm.svm_problem(labels, values)
-        param = libsvm.svm.svm_parameter(self._param)
-        self._m = libsvm.svmutil.svm_train(prob, param)
+        self._labels = [np.min(labels), np.max(labels)]
+        self._make_model()
+        self._m.fit(np.array(values), np.array(labels))
         return self
 
     def predict(self, value, converted=False):
@@ -86,66 +96,12 @@ class SVM(BinaryClassifier):
         Returns:
             Sorted (descending) list of (confidence, label)
         """
-        import libsvm.svm
-        import libsvm.svmutil
         if not converted:
             value = self.convert_value(value)
-        labels, stats, confidence = libsvm.svmutil.svm_predict([-1],
-                                                               [value],
-                                                               self._m)
-        return [(math.fabs(confidence[0][0]), int(labels[0]))]
-
-    @classmethod
-    def convert_value(cls, value, *args, **kw):
-        """Converts value to an efficient representation.
-
-        Args:
-            value: A value in a valid input type.
-
-        Returns:
-            Value in an efficient representation.
-        """
-        import libsvm.svm
-        import libsvm.svmutil
-        return super(SVM, cls).convert_value(value, to_type=list, *args, **kw)
-
-    def dumps(self):
-        """Serializes the classifier to a string
-
-        Returns:
-            A string that can be passed to the class' loads method
-        """
-        import libsvm.svm
-        import libsvm.svmutil
-        m = self._m
-        self._m = None
-        with tempfile.NamedTemporaryFile() as fp:
-            libsvm.svmutil.svm_save_model(fp.name, m)
-            fp.seek(0)
-            ser_model = fp.read()
-        out = pickle.dumps((self, ser_model), -1)
-        self._m = m
-        return out
-
-    @classmethod
-    def loads(cls, s):
-        """Returns a classifier instance given a serialized form
-
-        Args:
-            s: Serialized string
-
-        Returns:
-            An instance of this class as it was before it was serialized
-        """
-        import libsvm.svm
-        import libsvm.svmutil
-        c, ser_model = pickle.loads(s)
-        with tempfile.NamedTemporaryFile() as fp:
-            fp.write(ser_model)
-            fp.file.flush()
-            m = libsvm.svmutil.svm_load_model(fp.name)
-        c._m = m
-        return c
+        val = self._m.decision_function(np.array([value]))[0]
+        if val >= 0:
+            return [(float(np.abs(val)), self._labels[1])]
+        return [(float(np.abs(val)), self._labels[0])]
 
 
 def main():
