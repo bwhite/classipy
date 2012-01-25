@@ -1,7 +1,7 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
+from setuptools.extension import Extension
 import subprocess
 import re
-from distutils.extension import Extension
 import numpy as np
 
 
@@ -53,7 +53,7 @@ ext_modules = [Extension("_classipy_rand_forest", ["classipy/classifiers/rand_fo
 setup(name='classipy',
       cmdclass=cmdclass,
       version='0.0.3',
-      packages=['classipy', 'classipy.classifiers', 'classipy.classifiers.libsvm', 'classipy.classifiers.liblinear'],
+      packages=find_packages(),
       package_data={'classipy' : ['lib/*.so']},
       author='Brandyn A. White',
       author_email='bwhite@dappervision.com',
