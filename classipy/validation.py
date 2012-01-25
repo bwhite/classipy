@@ -26,7 +26,7 @@ import numpy as np
 
 
 def cross_validation(classifier_class, label_values, num_folds=10,
-                     options=None, expand_options=False, converted=False):
+                     options=None, converted=False):
     """Performs cross validation on a BinaryClassifier.
 
     The same partitions will be produced if random.seed is used before this is
@@ -39,8 +39,6 @@ def cross_validation(classifier_class, label_values, num_folds=10,
         num_folds: Number of partitions to split the data into (default 10).
             If len(label_values) < num_folds, then we use len(label_values)
         options: Options to pass to the classifier
-        expand_options: True then use classifier_class(**options) else use
-            classifier_class(options=options)
         converted: True then the input is in the correct internal format.
 
     Returns:
@@ -59,10 +57,7 @@ def cross_validation(classifier_class, label_values, num_folds=10,
     accuracy_sum = 0.
     for test_num in range(num_folds):
         train_labels_values = sum(folds[:test_num] + folds[test_num + 1:], [])
-        if expand_options:
-            c = classifier_class(**options)
-        else:
-            c = classifier_class(options=options)
+        c = classifier_class(**options)
         c.train(train_labels_values, converted=converted)
         out = evaluate(c, folds[test_num], converted=converted)
         accuracy_sum += out['accuracy']
@@ -264,7 +259,7 @@ def hard_negatives(classifier, label_values, class_selector=None):
 
 
 def select_parameters(classifier_class, label_values, parameters, optimizer,
-                      options=None, converted=False, expand_options=False, num_folds=10):
+                      options=None, converted=False, num_folds=10):
     """Finds good parameters
 
     The optimizer must run in bounded time as we return its maximum value
@@ -280,8 +275,6 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
             an iterator of (fitness, params).  See Pyram Library for examples.
         options: Options to pass to the classifier unchanged (Default: None)
         converted: True then the input is in the correct internal format
-        expand_options: True then use classifier_class(**options) else use
-            classifier_class(options=options)
         num_folds: Number of partitions to split the data into (default 10).
             If len(label_values) < num_folds, then we use len(label_values)
 
@@ -298,8 +291,7 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
         cur_options.update(options)
         return cross_validation(classifier_class, label_values,
                                 options=cur_options, converted=True,
-                                num_folds=num_folds,
-                                expand_options=expand_options)
+                                num_folds=num_folds)
     vals = []
     for x in optimizer(fitfunc, parameters):
         vals.append(x)

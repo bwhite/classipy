@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
-import subprocess
 import re
 import numpy as np
 
@@ -34,16 +33,6 @@ except ImportError:
     source_ext = '.c'
     cmdclass = {}
 
-# TODO This is a nasty hack, eventually we want to wrap everything with Cython
-def compile_shared():
-    subprocess.call('g++ -o classipy/lib/liblinear.so -shared thirdparty/liblinear-1.6/linear.os thirdparty/liblinear-1.6/tron.os thirdparty/liblinear-1.6/blas/dnrm2.os thirdparty/liblinear-1.6/blas/daxpy.os thirdparty/liblinear-1.6/blas/ddot.os thirdparty/liblinear-1.6/blas/dscal.os'.split())
-    subprocess.check_call('g++ -o classipy/lib/libsvm.so -shared thirdparty/libsvm-3.1/svm.os'.split())
-
-try:
-    compile_shared()
-except OSError:
-    print("Wasn't able to compile necessary shared libraries")
-    raise
 ext_modules = [Extension("_classipy_rand_forest", ["classipy/classifiers/rand_forest/rand_forest" + source_ext,
                                                    'classipy/classifiers/rand_forest/fast_hist.c'],
                          extra_compile_args=['-I', np.get_include()]),
@@ -54,7 +43,6 @@ setup(name='classipy',
       cmdclass=cmdclass,
       version='0.0.3',
       packages=find_packages(),
-      package_data={'classipy' : ['lib/*.so']},
       author='Brandyn A. White',
       author_email='bwhite@dappervision.com',
       license='GPL',
