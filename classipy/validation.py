@@ -264,7 +264,7 @@ def hard_negatives(classifier, label_values, class_selector=None):
 
 
 def select_parameters(classifier_class, label_values, parameters, optimizer,
-                      options=None, converted=False, num_folds=10):
+                      options=None, converted=False, expand_options=False, num_folds=10):
     """Finds good parameters
 
     The optimizer must run in bounded time as we return its maximum value
@@ -280,6 +280,8 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
             an iterator of (fitness, params).  See Pyram Library for examples.
         options: Options to pass to the classifier unchanged (Default: None)
         converted: True then the input is in the correct internal format
+        expand_options: True then use classifier_class(**options) else use
+            classifier_class(options=options)
         num_folds: Number of partitions to split the data into (default 10).
             If len(label_values) < num_folds, then we use len(label_values)
 
@@ -296,7 +298,8 @@ def select_parameters(classifier_class, label_values, parameters, optimizer,
         cur_options.update(options)
         return cross_validation(classifier_class, label_values,
                                 options=cur_options, converted=True,
-                                num_folds=num_folds)
+                                num_folds=num_folds,
+                                expand_options=expand_options)
     vals = []
     for x in optimizer(fitfunc, parameters):
         vals.append(x)
