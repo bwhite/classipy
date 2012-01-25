@@ -10,7 +10,7 @@ Visit https://github.com/bwhite/classipy/ for the source.
 
 About
 ---------------------------
-Simple Python classification interface.
+Simple Python classification interface.  Doc is broken for now (read the docs doesn't support autodoc w/ numpy).
 
 Helper Functions
 -----------------
